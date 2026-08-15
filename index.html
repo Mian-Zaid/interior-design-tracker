@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#6366f1" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0b0b12" media="(prefers-color-scheme: dark)" />
+<title>Interior Design Tracker</title>
+<!-- Google Identity Services (OAuth token client) + GAPI (Sheets API). Drive is called
+     with plain fetch/XHR so we get real upload progress. No backend anywhere. -->
+<script src="https://apis.google.com/js/api.js" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --accent:#6366f1; --accent-600:#4f46e5; --accent-050:#e8e9ff;
+    --bg:#f5f6fa; --card:#ffffff; --text:#1e1f27; --muted:#71727f;
+    --border:#e6e7ef; --track:#ecedf5;
+    --shadow:0 1px 2px rgba(20,20,40,.05), 0 8px 24px rgba(20,20,50,.06);
+    --radius:18px; --danger:#ef4444; --ok:#10b981; --warnc:#f59e0b;
+    --todo-bg:#eceef4; --todo-fg:#6b6c7b;
+    --prog-bg:#fef3c7; --prog-fg:#b45309;
+    --done-bg:#d1fae5; --done-fg:#047857;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0b0b12; --card:#16161f; --text:#e9e9f1; --muted:#9a9ba8;
+      --border:#262635; --track:#23232f; --accent-050:#1e1e3a;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.45);
+      --todo-bg:#262635; --todo-fg:#a8a9b8;
+      --prog-bg:#3a2c0c; --prog-fg:#fbbf24;
+      --done-bg:#0d3327; --done-fg:#34d399;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; line-height:1.45;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:18px 16px 64px}
+  header.app{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+  header.app h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em}
+  header.app .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .hbtns{display:flex;gap:8px;align-items:center}
+  .icon-btn{
+    appearance:none;border:1px solid var(--border);background:var(--card);color:var(--text);
+    height:42px;min-width:42px;padding:0 12px;border-radius:12px;font-size:14px;font-weight:600;
+    cursor:pointer;box-shadow:var(--shadow);display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    transition:transform .08s ease, background .15s ease;
+  }
+  .icon-btn.square{width:42px;padding:0;font-size:18px}
+  a.icon-btn{text-decoration:none}
+  .icon-btn:active{transform:scale(.94)}
+  .icon-btn.accent{background:var(--accent);color:#fff;border-color:transparent;box-shadow:0 6px 16px rgba(99,102,241,.35)}
+  .hidden{display:none !important}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .total-card{background:linear-gradient(135deg,var(--accent),var(--accent-600));color:#fff;border:none}
+  .total-card .label{font-size:13px;opacity:.85;font-weight:600;letter-spacing:.02em}
+  .total-card .amount{font-size:40px;font-weight:800;letter-spacing:-.02em;margin-top:2px;line-height:1.1}
+  .total-card .meta{font-size:12px;opacity:.82;margin-top:6px}
+  .total-card .bar{height:8px;background:rgba(255,255,255,.28);border-radius:99px;overflow:hidden;margin-top:12px}
+  .total-card .bar > i{display:block;height:100%;background:#fff;border-radius:99px;width:0;transition:width .5s cubic-bezier(.2,.7,.2,1)}
+  h2.section{font-size:14px;font-weight:700;margin:0 0 12px;color:var(--text);letter-spacing:-.01em}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field.full{grid-column:1 / -1}
+  label{font-size:12px;font-weight:600;color:var(--muted)}
+  input,select,textarea{
+    font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);
+    border-radius:12px;padding:11px 12px;width:100%;outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.18)}
+  textarea{resize:vertical;min-height:64px}
+  .btn{
+    appearance:none;border:none;cursor:pointer;font:inherit;font-weight:700;background:var(--accent);color:#fff;
+    border-radius:12px;padding:13px 16px;width:100%;transition:transform .08s ease, opacity .15s ease;
+    box-shadow:0 6px 16px rgba(99,102,241,.35);
+  }
+  .btn:active{transform:scale(.99)}
+  .btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+  .btn.danger{background:var(--danger);box-shadow:0 6px 16px rgba(239,68,68,.35)}
+  .btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--border);box-shadow:none}
+  .bar{height:8px;background:var(--track);border-radius:99px;overflow:hidden}
+  .bar > i{display:block;height:100%;background:var(--accent);border-radius:99px;width:0;transition:width .5s cubic-bezier(.2,.7,.2,1)}
+  .bar > i.done{background:var(--ok)}
+  /* room blocks */
+  .room-block{border-bottom:1px solid var(--border)}
+  .room-block:last-child{border-bottom:none}
+  .room-head{cursor:pointer;padding:12px 0 10px;user-select:none}
+  .room-top{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:6px;gap:10px}
+  .room-top .name{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .room-top .val{color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+  .room-head .caret{display:inline-block;width:14px;color:var(--muted);font-size:11px}
+  .room-body{padding:0 0 10px 10px;margin:0 0 6px 4px;border-left:2px solid var(--border)}
+  .room-tools{display:flex;gap:16px;flex-wrap:wrap;padding:4px 0 10px 2px}
+  .linkbtn{appearance:none;background:transparent;border:none;color:var(--accent);font:inherit;font-weight:700;font-size:12px;cursor:pointer;padding:0}
+  .linkbtn:active{opacity:.7}
+  .linkbtn.danger{color:var(--danger)}
+  /* task cards */
+  .task{display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-bottom:1px solid var(--border)}
+  .task:last-child{border-bottom:none}
+  .task.pending{opacity:.55}
+  .thumb{flex:none;width:46px;height:46px;border-radius:11px;overflow:hidden;background:var(--accent-050);
+    color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:15px;text-decoration:none}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .task .body{flex:1;min-width:0}
+  .task .body .ttl{font-weight:600;font-size:14px;word-break:break-word}
+  .task .body .dsc{font-size:12px;color:var(--muted);word-break:break-word;margin-top:1px}
+  .task .body .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}
+  .chip{
+    appearance:none;border:none;cursor:pointer;font:inherit;font-size:11px;font-weight:700;letter-spacing:.01em;
+    padding:4px 10px;border-radius:99px;transition:transform .08s ease,opacity .15s ease;line-height:1.35;
+  }
+  .chip:active{transform:scale(.95)}
+  .chip.todo{background:var(--todo-bg);color:var(--todo-fg)}
+  .chip.prog{background:var(--prog-bg);color:var(--prog-fg)}
+  .chip.done{background:var(--done-bg);color:var(--done-fg)}
+  .watch{
+    display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--accent);
+    text-decoration:none;border:1px solid var(--border);border-radius:99px;padding:3px 9px;
+  }
+  .watch img{width:26px;height:16px;object-fit:cover;border-radius:3px;display:block}
+  .acts{display:flex;gap:6px;flex:none}
+  .iconbtn{
+    appearance:none;border:1px solid var(--border);background:transparent;color:var(--muted);
+    width:32px;height:32px;border-radius:9px;cursor:pointer;font-size:14px;line-height:1;display:grid;place-items:center;
+    transition:background .15s ease, color .15s ease, transform .08s ease, border-color .15s ease;
+  }
+  .iconbtn:active{transform:scale(.9)}
+  .iconbtn.edit:hover{background:var(--accent-050);color:var(--accent);border-color:var(--accent)}
+  .iconbtn.del:hover{background:rgba(239,68,68,.1);color:var(--danger);border-color:rgba(239,68,68,.35)}
+  /* photo picker inside the task modal */
+  .photo-row{display:flex;gap:10px;align-items:center}
+  .photo-prev{flex:none;width:64px;height:64px;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--bg);display:none}
+  .photo-prev.show{display:block}
+  .photo-prev img{width:100%;height:100%;object-fit:cover;display:block}
+  .photo-btns{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+  .minibtn{
+    appearance:none;border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit;
+    font-size:12px;font-weight:700;padding:9px 12px;border-radius:11px;cursor:pointer;transition:transform .08s ease;
+  }
+  .minibtn:active{transform:scale(.96)}
+  .minibtn.danger{color:var(--danger);border-color:rgba(239,68,68,.35)}
+  .minibtn:disabled{opacity:.55;cursor:not-allowed}
+  .upbar{height:6px;background:var(--track);border-radius:99px;overflow:hidden;margin-top:9px;display:none}
+  .upbar.show{display:block}
+  .upbar > i{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .2s linear}
+  .confirm-msg{font-size:14px;color:var(--text);white-space:pre-wrap;margin:0 0 4px;line-height:1.5}
+  .err{font-size:12px;color:var(--danger);margin-top:8px;min-height:14px}
+  .label-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .empty{color:var(--muted);font-size:13px;text-align:center;padding:18px 0}
+  .modal-back{position:fixed;inset:0;background:rgba(10,10,20,.5);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+  .modal-back.open{display:flex}
+  /* modals that open on top of other modals must stack above them */
+  #newRoomBack{z-index:60}
+  #confirmBack{z-index:70}
+  .modal{background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);width:100%;max-width:460px;padding:22px;max-height:90vh;overflow:auto}
+  .modal h3{margin:0 0 4px;font-size:17px}
+  .modal p{margin:0 0 16px;font-size:13px;color:var(--muted)}
+  .modal .row{display:flex;gap:10px;margin-top:18px}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  .hint a{color:var(--accent)}
+  .note{font-size:12px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:11px;padding:10px 12px;margin-top:14px}
+  .status{font-size:12px;padding:10px 12px;border-radius:10px;margin-bottom:14px;display:none;border:1px solid var(--border);align-items:center;gap:10px;justify-content:space-between}
+  .status.show{display:flex}
+  .status.warn{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.3);color:var(--danger)}
+  .status.info{background:var(--accent-050);border-color:var(--border);color:var(--accent)}
+  .status .act{appearance:none;border:1px solid currentColor;background:transparent;color:inherit;font:inherit;font-weight:700;font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;flex:none}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  .spin.dark{border-color:rgba(120,120,140,.35);border-top-color:var(--accent)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .foot{text-align:center;font-size:11px;color:var(--muted);margin-top:8px}
+  a{color:var(--accent)}
+  hr.sep{border:none;border-top:1px solid var(--border);margin:18px 0 14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <div>
+      <h1>Interior Tracker</h1>
+      <div class="sub" id="syncSub">Not connected</div>
+    </div>
+    <div class="hbtns">
+      <button class="icon-btn accent hidden" id="authBtn">Sign in</button>
+      <a class="icon-btn square hidden" id="sheetLink" href="#" target="_blank" rel="noopener" title="Open Google Sheet" aria-label="Open Google Sheet">🔗</a>
+      <button class="icon-btn square" id="settingsBtn" title="Settings" aria-label="Settings">⚙︎</button>
+    </div>
+  </header>
+
+  <div class="status" id="banner">
+    <span id="bannerText"></span>
+    <button class="act hidden" id="bannerAct"></button>
+  </div>
+
+  <div class="card total-card">
+    <div class="label">Overall Progress</div>
+    <div class="amount" id="overallPct">0%</div>
+    <div class="meta" id="overallMeta">No tasks yet</div>
+    <div class="bar"><i id="overallBar" style="width:0%"></i></div>
+  </div>
+
+  <div class="card">
+    <button class="btn" id="addTaskBtn" type="button" disabled>＋ Add Task</button>
+  </div>
+
+  <div class="card">
+    <div class="label-row" style="margin-bottom:12px">
+      <h2 class="section" style="margin:0">Rooms</h2>
+      <button type="button" class="linkbtn" id="newRoomBtn">＋ New Room</button>
+    </div>
+    <div id="rooms"><div class="empty">No rooms yet</div></div>
+  </div>
+
+  <div class="foot">Reads &amp; writes your Google Sheet and Drive directly — no server.</div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-back" id="modalBack">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <h3 id="mTitle">Settings</h3>
+    <p>Connect the app straight to your Google Sheet using your own Google sign-in. Nothing is stored on any server.</p>
+
+    <div class="field">
+      <label for="clientIdInput">Google OAuth Client ID</label>
+      <input type="text" id="clientIdInput" placeholder="1234567890-abc….apps.googleusercontent.com" />
+      <div class="hint">Create one (free) at <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud → Credentials</a>. See the README for setup.</div>
+    </div>
+
+    <div class="field" style="margin-top:14px">
+      <label for="sheetInput">Google Sheet link or ID</label>
+      <input type="text" id="sheetInput" placeholder="https://docs.google.com/spreadsheets/d/…/edit" />
+      <div class="hint">Paste the full sheet URL or just the ID. You need edit access.</div>
+    </div>
+
+    <div class="field" style="margin-top:14px">
+      <label for="tabInput">Tab name</label>
+      <input type="text" id="tabInput" placeholder="Interior" />
+      <div class="hint">The tab that holds your room tables. Default: <code>Interior</code>.</div>
+    </div>
+
+    <div class="note">
+      ⚠️ <strong>Photos are shared by link.</strong> Uploaded photos go to <em>your</em> Google Drive, but the app
+      marks each one “anyone with the link can view” so the image shows up on your other devices. Anyone who gets
+      the link can open that photo. Fine for a home project — don't upload anything private.
+    </div>
+
+    <hr class="sep" />
+    <button class="btn" id="connectBtn" type="button" style="background:#fff;color:#3c4043;border:1px solid var(--border);box-shadow:none">
+      <span id="connectBtnText">Sign in with Google</span>
+    </button>
+    <div class="hint" id="authState" style="margin-top:8px">Not signed in.</div>
+
+    <div class="row">
+      <button class="btn ghost" id="cancelSettings" type="button">Close</button>
+      <button class="btn" id="saveSettings" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit task modal -->
+<div class="modal-back" id="taskBack">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="taskTitle">
+    <h3 id="taskTitle">Add Task</h3>
+    <p id="taskSubtitle">Title is required. Everything else is optional.</p>
+    <div class="grid">
+      <div class="field full">
+        <div class="label-row"><label for="taskRoom">Room</label>
+        <button type="button" class="linkbtn" id="taskNewRoom">＋ New room</button></div>
+        <select id="taskRoom"></select>
+      </div>
+      <div class="field full">
+        <label for="taskTitleInput">Title</label>
+        <input type="text" id="taskTitleInput" placeholder="e.g. Install cabinets" />
+      </div>
+      <div class="field full">
+        <label for="taskDesc">Description</label>
+        <textarea id="taskDesc" placeholder="Upper + lower units, matte finish…"></textarea>
+      </div>
+      <div class="field full">
+        <label for="taskStatus">Status</label>
+        <select id="taskStatus">
+          <option value="To Do">To Do</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Done">Done</option>
+        </select>
+      </div>
+      <div class="field full">
+        <label>Photo</label>
+        <div class="photo-row">
+          <div class="photo-prev" id="photoPrev"><img id="photoPrevImg" alt="" /></div>
+          <div class="photo-btns">
+            <button type="button" class="minibtn" id="pickGalleryBtn">🖼 Add Photo</button>
+            <button type="button" class="minibtn" id="pickCameraBtn">📷 Camera</button>
+            <button type="button" class="minibtn danger hidden" id="removePhotoBtn">Remove</button>
+          </div>
+        </div>
+        <div class="upbar" id="upBar"><i id="upBarFill"></i></div>
+        <input type="file" id="fileGallery" accept="image/*" class="hidden" />
+        <input type="file" id="fileCamera" accept="image/*" capture="environment" class="hidden" />
+        <div class="hint" id="photoHint">Resized to 1600px before upload. Stored in your Drive, shared by link.</div>
+      </div>
+      <div class="field full">
+        <label for="taskVideo">Video link</label>
+        <input type="url" id="taskVideo" placeholder="https://youtube.com/watch?v=… (optional)" />
+      </div>
+    </div>
+    <div class="err" id="taskErr"></div>
+    <div class="row">
+      <button class="btn ghost" id="taskCancel" type="button">Cancel</button>
+      <button class="btn" id="taskSave" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm modal -->
+<div class="modal-back" id="confirmBack">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" style="max-width:400px">
+    <h3 id="confirmTitle">Please confirm</h3>
+    <p class="confirm-msg" id="confirmMsg">Are you sure?</p>
+    <div class="row">
+      <button class="btn ghost" id="confirmNo" type="button">Cancel</button>
+      <button class="btn danger" id="confirmYes" type="button">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- New room modal -->
+<div class="modal-back" id="newRoomBack">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newRoomTitle" style="max-width:400px">
+    <h3 id="newRoomTitle">New Room</h3>
+    <p>Adds a new room table to your sheet (a title + Title | Description | Status | Image URL | Video URL header), placed beside the existing ones.</p>
+    <div class="field">
+      <label for="newRoomName">Room name</label>
+      <input type="text" id="newRoomName" placeholder="e.g. Kitchen" />
+    </div>
+    <div class="err" id="newRoomErr"></div>
+    <div class="row">
+      <button class="btn ghost" id="newRoomCancel" type="button">Cancel</button>
+      <button class="btn" id="newRoomCreate" type="button">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rename room modal -->
+<div class="modal-back" id="renameBack">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="renameTitle" style="max-width:400px">
+    <h3 id="renameTitle">Rename Room</h3>
+    <p>Renames the room's title in your sheet. Its tasks stay with it.</p>
+    <div class="field">
+      <label for="renameName">New name</label>
+      <input type="text" id="renameName" />
+    </div>
+    <div class="err" id="renameErr"></div>
+    <div class="row">
+      <button class="btn ghost" id="renameCancel" type="button">Cancel</button>
+      <button class="btn" id="renameSave" type="button">Rename</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete room modal (guards orphaned tasks) -->
+<div class="modal-back" id="delRoomBack">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="delRoomTitle" style="max-width:430px">
+    <h3 id="delRoomTitle">Delete Room</h3>
+    <p class="confirm-msg" id="delRoomMsg"></p>
+    <div class="field hidden" id="delRoomMoveWrap" style="margin-top:10px">
+      <label for="delRoomTarget">Move tasks to</label>
+      <select id="delRoomTarget"></select>
+    </div>
+    <div class="err" id="delRoomErr"></div>
+    <div id="delRoomActions" style="display:flex;flex-direction:column;gap:10px;margin-top:16px"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var LS_CLIENT="it_client_id", LS_SHEET="it_sheet_id", LS_TAB="it_tab";
+  var POLL_MS=20000;
+  var SCOPE="https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file";
+  var DISCOVERY="https://sheets.googleapis.com/$discovery/rest?version=v4";
+  var HEADERS=["Title","Description","Status","Image URL","Video URL"];
+  var STATUSES=["To Do","In Progress","Done"];
+  var MAX_IMG_PX=1600;
+
+  var state={
+    clientId:localStorage.getItem(LS_CLIENT)||"",
+    sheetId:localStorage.getItem(LS_SHEET)||"",
+    tab:localStorage.getItem(LS_TAB)||"Interior",
+    rooms:[],        // room titles, in sheet order
+    blocks:{},       // title -> {titleCol,descCol,statusCol,imgCol,videoCol,headerRow,titleRow,lastDataRow}
+    tasks:[],        // parsed tasks {room,title,description,status,image,video,row,...cols}
+    pending:[],      // optimistic tasks not yet confirmed by a re-read
+    signedIn:false,
+    expanded:{},     // room title -> expanded?
+    byId:{},         // task id -> task (for edit/delete lookups)
+    editing:null     // task currently open in the task modal (null = adding)
+  };
+
+  var gapiReady=false, tokenClient=null, tokenExpiry=0, accessToken="";
+
+  var $=function(id){return document.getElementById(id);};
+  var els={
+    overallPct:$("overallPct"),overallMeta:$("overallMeta"),overallBar:$("overallBar"),
+    rooms:$("rooms"),addTaskBtn:$("addTaskBtn"),newRoomBtn:$("newRoomBtn"),
+    banner:$("banner"),bannerText:$("bannerText"),bannerAct:$("bannerAct"),
+    syncSub:$("syncSub"),settingsBtn:$("settingsBtn"),authBtn:$("authBtn"),sheetLink:$("sheetLink"),
+    modalBack:$("modalBack"),clientIdInput:$("clientIdInput"),sheetInput:$("sheetInput"),
+    tabInput:$("tabInput"),connectBtn:$("connectBtn"),connectBtnText:$("connectBtnText"),
+    authState:$("authState"),saveSettings:$("saveSettings"),cancelSettings:$("cancelSettings"),
+    taskBack:$("taskBack"),taskTitle:$("taskTitle"),taskSubtitle:$("taskSubtitle"),
+    taskRoom:$("taskRoom"),taskNewRoom:$("taskNewRoom"),taskTitleInput:$("taskTitleInput"),
+    taskDesc:$("taskDesc"),taskStatus:$("taskStatus"),taskVideo:$("taskVideo"),
+    taskErr:$("taskErr"),taskSave:$("taskSave"),taskCancel:$("taskCancel"),
+    photoPrev:$("photoPrev"),photoPrevImg:$("photoPrevImg"),photoHint:$("photoHint"),
+    pickGalleryBtn:$("pickGalleryBtn"),pickCameraBtn:$("pickCameraBtn"),removePhotoBtn:$("removePhotoBtn"),
+    fileGallery:$("fileGallery"),fileCamera:$("fileCamera"),upBar:$("upBar"),upBarFill:$("upBarFill"),
+    confirmBack:$("confirmBack"),confirmMsg:$("confirmMsg"),confirmYes:$("confirmYes"),confirmNo:$("confirmNo"),
+    newRoomBack:$("newRoomBack"),newRoomName:$("newRoomName"),newRoomErr:$("newRoomErr"),
+    newRoomCreate:$("newRoomCreate"),newRoomCancel:$("newRoomCancel"),
+    renameBack:$("renameBack"),renameName:$("renameName"),renameErr:$("renameErr"),
+    renameSave:$("renameSave"),renameCancel:$("renameCancel"),
+    delRoomBack:$("delRoomBack"),delRoomMsg:$("delRoomMsg"),delRoomMoveWrap:$("delRoomMoveWrap"),
+    delRoomTarget:$("delRoomTarget"),delRoomErr:$("delRoomErr"),delRoomActions:$("delRoomActions")
+  };
+
+  /* ---------------- helpers ---------------- */
+  function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+  function trimStr(v){return String(v==null?"":v).trim();}
+  function parseSheetId(v){v=trimStr(v);var m=v.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);return m?m[1]:v.replace(/^.*[\/=]/,"");}
+  function configured(){return !!(state.clientId&&state.sheetId&&state.tab);}
+  function q(name){return "'"+String(name).replace(/'/g,"''")+"'";}
+  function normName(s){return trimStr(s).toLowerCase().replace(/\s+/g," ");}
+  function colA1(n){var s="";n=n+1;while(n>0){var m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}return s;}
+  function allTasks(){return state.pending.concat(state.tasks);}
+  function lc(v){return trimStr(v).toLowerCase();}
+
+  // The sheet is human-editable, so accept the obvious spellings of each status.
+  function normStatus(v){
+    var s=lc(v).replace(/[\s_\-]+/g," ");
+    if(s==="done"||s==="complete"||s==="completed"||s==="finished"||s==="✓")return "Done";
+    if(s==="in progress"||s==="progress"||s==="doing"||s==="wip"||s==="ongoing"||s==="started"||s==="in-progress")return "In Progress";
+    return "To Do";
+  }
+  function statusClass(s){return s==="Done"?"done":(s==="In Progress"?"prog":"todo");}
+  function nextStatus(s){var i=STATUSES.indexOf(s);return STATUSES[(i<0?0:i+1)%STATUSES.length];}
+
+  // Drive links: pull the file id out of whatever form got stored, so we can render
+  // a real <img> (the /thumbnail endpoint is the one that reliably hot-links).
+  function driveFileId(url){
+    var u=trimStr(url);if(!u)return "";
+    var m=u.match(/\/file\/d\/([a-zA-Z0-9_\-]{10,})/)||u.match(/[?&]id=([a-zA-Z0-9_\-]{10,})/)||u.match(/\/d\/([a-zA-Z0-9_\-]{10,})/);
+    return m?m[1]:"";
+  }
+  function imgSrc(url){
+    var id=driveFileId(url);
+    return id?("https://drive.google.com/thumbnail?id="+encodeURIComponent(id)+"&sz=w400"):trimStr(url);
+  }
+  function youtubeId(url){
+    var u=trimStr(url);if(!u)return "";
+    var m=u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_\-]{6,})/);
+    return m?m[1]:"";
+  }
+  function safeUrl(u){
+    u=trimStr(u);
+    return /^https?:\/\//i.test(u)?u:"";
+  }
+
+  function banner(msg,kind,actLabel,actFn){
+    if(!msg){els.banner.className="status";els.bannerText.textContent="";els.bannerAct.classList.add("hidden");return;}
+    els.banner.className="status show "+(kind||"info");els.bannerText.innerHTML=msg;
+    if(actLabel&&actFn){els.bannerAct.textContent=actLabel;els.bannerAct.classList.remove("hidden");els.bannerAct.onclick=actFn;}
+    else{els.bannerAct.classList.add("hidden");els.bannerAct.onclick=null;}
+  }
+
+  /* --------- parse the side-by-side room tables --------- */
+  // Anchor on the "Title" header cell: that column = Title, +1 = Description,
+  // +2 = Status, +3 = Image URL, +4 = Video URL. The room name is the nearest
+  // non-empty cell above the header in the Title column.
+  function isHeaderRow(rowArr,c){
+    if(lc(rowArr[c])!=="title") return false;
+    // Guard against a task literally titled "Title": require a neighbouring header too.
+    return lc(rowArr[c+1])==="description" || lc(rowArr[c+2])==="status";
+  }
+  function parseGrid(grid){
+    var blocks={}, titles=[], tasks=[];
+    for(var r=0;r<grid.length;r++){
+      var rowArr=grid[r]||[];
+      for(var c=0;c<rowArr.length;c++){
+        if(!isHeaderRow(rowArr,c)) continue;
+        var titleCol=c, descCol=c+1, statusCol=c+2, imgCol=c+3, videoCol=c+4, headerRow=r;
+        // room name: nearest non-empty cell above the header, in the Title column
+        var room="", titleRow=null;
+        for(var t=r-1;t>=0;t--){ var tv=trimStr(grid[t]&&grid[t][titleCol]); if(tv){room=tv;titleRow=t;break;} }
+        if(!room) room="Room "+colA1(titleCol);
+        var baseRoom=room, k=2; while(blocks[room]){ room=baseRoom+" ("+(k++)+")"; }
+        // walk data rows down; blank rows are gaps (deleted tasks), not the end
+        var lastDataRow=headerRow;
+        for(var rr=headerRow+1; rr<grid.length; rr++){
+          var g=grid[rr]||[];
+          if(isHeaderRow(g,titleCol)) break; // another table stacked below in the same columns
+          var ttl=trimStr(g[titleCol]);
+          if(ttl){
+            tasks.push({
+              room:room, title:ttl, description:trimStr(g[descCol]),
+              status:normStatus(g[statusCol]), image:trimStr(g[imgCol]), video:trimStr(g[videoCol]),
+              row:rr+1, titleCol:titleCol, descCol:descCol, statusCol:statusCol, imgCol:imgCol, videoCol:videoCol
+            });
+            lastDataRow=rr;
+          }
+        }
+        blocks[room]={titleCol:titleCol,descCol:descCol,statusCol:statusCol,imgCol:imgCol,videoCol:videoCol,
+          headerRow:headerRow,titleRow:titleRow,lastDataRow:lastDataRow};
+        titles.push(room);
+      }
+    }
+    return {blocks:blocks, titles:titles, tasks:tasks};
+  }
+
+  /* ---------------- rendering ---------------- */
+  function taskId(t){return t.row+"_"+t.titleCol;}
+  function rebuildIndex(){
+    state.byId={};
+    state.tasks.forEach(function(t){ state.byId[taskId(t)]=t; });
+  }
+  function pct(done,total){return total>0?Math.round((done/total)*100):0;}
+
+  function taskHTML(t){
+    var canAct=!t._pending&&t.row;
+    var id=canAct?taskId(t):"";
+    var img=safeUrl(t.image), vid=safeUrl(t.video);
+    var thumb;
+    if(img){
+      thumb='<a class="thumb" href="'+esc(img)+'" target="_blank" rel="noopener" title="Open photo">'
+        +'<img src="'+esc(imgSrc(img))+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" /></a>';
+    } else {
+      thumb='<div class="thumb">'+esc((t.title||"?").trim().slice(0,1).toUpperCase())+'</div>';
+    }
+    var yt=youtubeId(vid);
+    var watch=vid
+      ? '<a class="watch" href="'+esc(vid)+'" target="_blank" rel="noopener">'
+        +(yt?'<img src="https://img.youtube.com/vi/'+esc(yt)+'/mqdefault.jpg" alt="" loading="lazy" onerror="this.style.display=\'none\'" />':"")
+        +'▶ Watch</a>'
+      : "";
+    return '<div class="task'+(t._pending?" pending":"")+'">'
+      + thumb
+      + '<div class="body">'
+      +   '<div class="ttl">'+esc(t.title||"—")+'</div>'
+      +   (t.description?'<div class="dsc">'+esc(t.description)+'</div>':"")
+      +   '<div class="meta">'
+      +     (canAct
+              ? '<button class="chip '+statusClass(t.status)+' cycle" data-id="'+esc(id)+'" title="Tap to change status">'+esc(t.status)+'</button>'
+              : '<span class="chip '+statusClass(t.status)+'">'+esc(t._pending?"saving…":t.status)+'</span>')
+      +     watch
+      +   '</div>'
+      + '</div>'
+      + '<div class="acts">'
+      +   (canAct?'<button class="iconbtn edit" data-id="'+esc(id)+'" title="Edit" aria-label="Edit">✎</button>':'')
+      +   (canAct?'<button class="iconbtn del" data-id="'+esc(id)+'" title="Delete" aria-label="Delete">&times;</button>':'')
+      + '</div>'
+      + '</div>';
+  }
+
+  function renderOverall(){
+    var list=allTasks();
+    var done=0;
+    list.forEach(function(t){ if(t.status==="Done") done++; });
+    var p=pct(done,list.length);
+    els.overallPct.textContent=p+"%";
+    els.overallBar.style.width=p+"%";
+    els.overallMeta.textContent=list.length
+      ? (done+" of "+list.length+" "+(list.length===1?"task":"tasks")+" done · "+state.rooms.length+" "+(state.rooms.length===1?"room":"rooms"))
+      : "No tasks yet";
+  }
+
+  function renderRooms(){
+    var list=allTasks(), byRoom={};
+    list.forEach(function(t){ (byRoom[t.room]=byRoom[t.room]||[]).push(t); });
+    var rooms=state.rooms.slice();
+    Object.keys(byRoom).forEach(function(k){ if(rooms.indexOf(k)===-1) rooms.push(k); });
+    if(!rooms.length){ els.rooms.innerHTML='<div class="empty">No rooms yet — tap ＋ New Room</div>'; return; }
+    var html="";
+    rooms.forEach(function(rm){
+      var ts=byRoom[rm]||[];
+      var done=0; ts.forEach(function(t){ if(t.status==="Done") done++; });
+      var p=pct(done,ts.length), open=!!state.expanded[rm];
+      html+='<div class="room-block">'
+        +'<div class="room-head" data-room="'+esc(rm)+'">'
+        +  '<div class="room-top">'
+        +    '<span class="name"><span class="caret">'+(open?"▾":"▸")+'</span> '+esc(rm)+'</span>'
+        +    '<span class="val">'+done+'/'+ts.length+' · '+p+'%</span>'
+        +  '</div>'
+        +  '<div class="bar"><i class="'+(p===100&&ts.length?"done":"")+'" style="width:'+p+'%"></i></div>'
+        +'</div>';
+      if(open){
+        html+='<div class="room-body">'
+          +'<div class="room-tools">'
+          +  '<button class="linkbtn roomadd" data-room="'+esc(rm)+'">＋ Add task</button>'
+          +  '<button class="linkbtn roomrename" data-room="'+esc(rm)+'">✎ Rename</button>'
+          +  '<button class="linkbtn danger roomdel" data-room="'+esc(rm)+'">🗑 Delete room</button>'
+          +'</div>'
+          +(ts.length?ts.map(taskHTML).join(""):'<div class="empty">No tasks yet</div>')
+          +'</div>';
+      }
+      html+='</div>';
+    });
+    els.rooms.innerHTML=html;
+  }
+
+  function renderAll(){ rebuildIndex(); renderOverall(); renderRooms(); }
+
+  function updateStatus(){
+    if(state.sheetId){
+      els.sheetLink.href="https://docs.google.com/spreadsheets/d/"+encodeURIComponent(state.sheetId)+"/edit";
+      els.sheetLink.classList.remove("hidden");
+    } else { els.sheetLink.classList.add("hidden"); }
+    if(!configured()){
+      els.syncSub.textContent="Not connected — tap ⚙︎";
+      els.authBtn.classList.add("hidden"); els.addTaskBtn.disabled=true; return;
+    }
+    if(state.signedIn){ els.authBtn.classList.add("hidden"); }
+    else { els.authBtn.classList.remove("hidden"); els.syncSub.textContent="Sign in to sync"; }
+    els.authState.textContent=state.signedIn?"Signed in ✓":"Not signed in.";
+    els.addTaskBtn.disabled=!state.signedIn;
+  }
+
+  /* ---------------- Google auth / API ---------------- */
+  function waitForLibs(){
+    return new Promise(function(resolve){
+      (function chk(){ if(window.gapi&&window.google&&google.accounts&&google.accounts.oauth2){resolve();return;} setTimeout(chk,120); })();
+    });
+  }
+  function initGapi(){
+    return new Promise(function(resolve,reject){
+      if(gapiReady)return resolve();
+      gapi.load("client",function(){
+        gapi.client.init({discoveryDocs:[DISCOVERY]}).then(function(){gapiReady=true;resolve();}).catch(reject);
+      });
+    });
+  }
+  function initTokenClient(){
+    if(tokenClient&&tokenClient.__cid===state.clientId)return;
+    tokenClient=google.accounts.oauth2.initTokenClient({client_id:state.clientId,scope:SCOPE,callback:function(){},error_callback:function(){}});
+    tokenClient.__cid=state.clientId;
+  }
+  function requestToken(interactive){
+    return new Promise(function(resolve,reject){
+      if(!tokenClient){reject(new Error("Auth not ready"));return;}
+      tokenClient.callback=function(resp){
+        if(resp&&resp.access_token){
+          accessToken=resp.access_token;
+          gapi.client.setToken({access_token:resp.access_token});
+          tokenExpiry=Date.now()+((resp.expires_in||3600)-60)*1000;
+          state.signedIn=true;updateStatus();resolve(resp);
+        } else { reject(new Error((resp&&resp.error)||"No token")); }
+      };
+      tokenClient.error_callback=function(err){reject(new Error((err&&err.type)||"auth_failed"));};
+      try{ tokenClient.requestAccessToken({prompt:interactive?"consent":""}); }catch(e){reject(e);}
+    });
+  }
+  function ensureToken(interactive){
+    if(state.signedIn&&Date.now()<tokenExpiry)return Promise.resolve();
+    return requestToken(interactive);
+  }
+  function connect(interactive){
+    if(!configured()){openModal();return Promise.reject(new Error("not configured"));}
+    return waitForLibs().then(initGapi).then(function(){initTokenClient();})
+      .then(function(){return ensureToken(interactive);})
+      .then(function(){return refresh();})
+      .catch(function(err){
+        state.signedIn=false;updateStatus();
+        if(String(err.message)==="not configured")return;
+        banner("Not signed in. Connect the app to your Google Sheet.","info","Sign in",function(){connect(true);});
+        throw err;
+      });
+  }
+
+  /* ---------------- Sheets read/write ---------------- */
+  function readGrid(){
+    return gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId:state.sheetId, range:q(state.tab), valueRenderOption:"FORMATTED_VALUE"
+    }).then(function(res){ return res.result.values||[]; });
+  }
+  function refresh(){
+    if(!state.signedIn)return Promise.resolve(false);
+    return readGrid().then(function(grid){
+      var p=parseGrid(grid);
+      state.blocks=p.blocks; state.rooms=p.titles; state.tasks=p.tasks;
+      reconcilePending(); renderAll();
+      var t=new Date().toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
+      els.syncSub.textContent = state.rooms.length
+        ? (state.rooms.length+(state.rooms.length===1?" room · synced ":" rooms · synced ")+t)
+        : "No room tables found in '"+state.tab+"'";
+      if(!state.rooms.length){
+        banner("No room tables found in tab '"+esc(state.tab)+"'. Tap ＋ New Room to create one, or add a 'Title | Description | Status | Image URL | Video URL' header row with the room name above it.","warn");
+      } else { banner(""); }
+      return true;
+    }).catch(function(err){ handleApiError(err); return false; });
+  }
+  function reconcilePending(){
+    if(!state.pending.length)return;
+    state.pending=state.pending.filter(function(p){
+      return !state.tasks.some(function(t){
+        return t.room===p.room && trimStr(t.title)===trimStr(p.title) && trimStr(t.description)===trimStr(p.description);
+      });
+    });
+  }
+  // Find the first fully-empty write row for a room block (no row insertion).
+  function findWriteRow(grid, block){
+    var start=block.lastDataRow+1;           // 0-based row after the last task
+    var limit=Math.max(grid.length,start)+200;
+    for(var r=start;r<limit;r++){
+      var g=grid[r]||[];
+      var blank=true;
+      for(var c=block.titleCol;c<=block.videoCol;c++){ if(trimStr(g[c])!==""){blank=false;break;} }
+      if(blank) return r; // 0-based
+    }
+    return -1;
+  }
+  // Create a new room table to the right of everything already in the sheet (new
+  // columns, so nothing existing shifts). Title cell + the 5-column header row,
+  // aligned to the rows the other tables already use.
+  function createRoom(name){
+    return readGrid().then(function(grid){
+      var p=parseGrid(grid);
+      if(p.titles.some(function(t){return normName(t)===normName(name);}))
+        throw new Error("Room '"+name+"' already exists");
+      var headerRow0=3, titleRow0=1; // sensible defaults for an empty sheet
+      if(p.titles.length){
+        var ref=p.blocks[p.titles[0]];
+        headerRow0=ref.headerRow;
+        titleRow0=(ref.titleRow!=null)?ref.titleRow:Math.max(0,headerRow0-2);
+      }
+      // Place it right of EVERYTHING actually present, not just of the parsed
+      // tables — otherwise a new table can land on top of unparsed content.
+      var maxUsedCol=-1;
+      grid.forEach(function(row){ if(row && (row.length-1)>maxUsedCol) maxUsedCol=row.length-1; });
+      var newTitleCol=(maxUsedCol<0)?0:(maxUsedCol+2); // one empty gap column before the new table
+      var titleRange=q(state.tab)+"!"+colA1(newTitleCol)+(titleRow0+1);
+      var headerRange=q(state.tab)+"!"+colA1(newTitleCol)+(headerRow0+1)+":"+colA1(newTitleCol+4)+(headerRow0+1);
+      return gapi.client.sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId:state.sheetId,
+        resource:{ valueInputOption:"RAW", data:[
+          { range:titleRange, values:[[ name ]] },
+          { range:headerRange, values:[ HEADERS ] }
+        ]}
+      });
+    });
+  }
+  // Rename a room = overwrite its title cell (tasks stay in place under it).
+  function renameRoom(oldName, newName){
+    return readGrid().then(function(grid){
+      var p=parseGrid(grid); var b=p.blocks[oldName];
+      if(!b) throw new Error("Room '"+oldName+"' not found");
+      var trow=(b.titleRow!=null)?b.titleRow:Math.max(0,b.headerRow-1);
+      var range=q(state.tab)+"!"+colA1(b.titleCol)+(trow+1);
+      return gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId:state.sheetId, range:range, valueInputOption:"RAW", resource:{ values:[[ newName ]] }
+      });
+    });
+  }
+  // Delete a room table = clear its own region only. No row/column deletion, so
+  // neighbouring tables never shift.
+  function deleteRoomTable(room){
+    return readGrid().then(function(grid){
+      var p=parseGrid(grid); var b=p.blocks[room];
+      if(!b) return null; // already gone
+      var startRow=(b.titleRow!=null)?b.titleRow:b.headerRow;
+      var endRow=Math.max(b.lastDataRow,b.headerRow);
+      var range=q(state.tab)+"!"+colA1(b.titleCol)+(startRow+1)+":"+colA1(b.videoCol)+(endRow+1);
+      return gapi.client.sheets.spreadsheets.values.clear({ spreadsheetId:state.sheetId, range:range, resource:{} });
+    });
+  }
+  function rowValues(v){ return [ v.title, v.description, v.status, v.image||"", v.video||"" ]; }
+  function appendTask(payload){
+    // Re-read fresh so we never overwrite existing cells or misjudge the row.
+    return readGrid().then(function(grid){
+      var p=parseGrid(grid);
+      var block=p.blocks[payload.room];
+      if(!block) throw new Error("Room '"+payload.room+"' not found in the sheet");
+      var r0=findWriteRow(grid, block);
+      if(r0<0) throw new Error("No empty row under '"+payload.room+"'.");
+      var row=r0+1; // 1-based
+      var range=q(state.tab)+"!"+colA1(block.titleCol)+row+":"+colA1(block.videoCol)+row;
+      return gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId:state.sheetId, range:range, valueInputOption:"USER_ENTERED",
+        resource:{ values:[ rowValues(payload) ] }
+      });
+    });
+  }
+  // Verify the title cell still matches before touching a row, so a row that moved
+  // or changed underneath us is never clobbered.
+  function guardRow(orig){
+    var cell=q(state.tab)+"!"+colA1(orig.titleCol)+orig.row;
+    return gapi.client.sheets.spreadsheets.values.get({spreadsheetId:state.sheetId,range:cell,valueRenderOption:"FORMATTED_VALUE"})
+      .then(function(res){
+        var cur=trimStr(res.result.values&&res.result.values[0]&&res.result.values[0][0]);
+        if(cur!==trimStr(orig.title)) throw new Error("Row changed — refresh and try again");
+      });
+  }
+  function clearTask(task){
+    return guardRow(task).then(function(){
+      var range=q(state.tab)+"!"+colA1(task.titleCol)+task.row+":"+colA1(task.videoCol)+task.row;
+      return gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId:state.sheetId, range:range, valueInputOption:"RAW",
+        resource:{ values:[[ "", "", "", "", "" ]] }
+      });
+    });
+  }
+  function guardedUpdate(orig, vals){
+    return guardRow(orig).then(function(){
+      var range=q(state.tab)+"!"+colA1(orig.titleCol)+orig.row+":"+colA1(orig.videoCol)+orig.row;
+      return gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId:state.sheetId, range:range, valueInputOption:"USER_ENTERED",
+        resource:{ values:[ rowValues(vals) ] }
+      });
+    });
+  }
+  function handleApiError(err){
+    var status=err&&(err.status||(err.result&&err.result.error&&err.result.error.code));
+    var msg=(err&&err.result&&err.result.error&&err.result.error.message)||(err&&err.message)||"Request failed";
+    if(status===401){
+      state.signedIn=false;updateStatus();
+      requestToken(false).then(refresh).catch(function(){ banner("Session expired. Sign in again.","warn","Sign in",function(){connect(true);}); });
+      return;
+    }
+    if(status===403){ banner("Access denied. Make sure your signed-in Google account has edit access, and that the Sheets and Drive APIs are enabled.","warn"); return; }
+    if(status===404){ banner("Sheet or tab not found. Check the Sheet link and Tab name in ⚙︎ settings.","warn"); return; }
+    banner("Error: "+esc(msg),"warn");
+  }
+
+  /* ---------------- Google Drive image upload ---------------- */
+  // Shrink to MAX_IMG_PX on the long edge before upload — phone photos are 4-8MB
+  // and mobile data is where this app gets used.
+  function resizeImage(file){
+    return new Promise(function(resolve){
+      if(!/^image\//.test(file.type||"")){ resolve({blob:file,type:file.type||"application/octet-stream"}); return; }
+      var url=URL.createObjectURL(file);
+      var img=new Image();
+      img.onload=function(){
+        var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+        var scale=Math.min(1, MAX_IMG_PX/Math.max(w,h));
+        if(scale>=1 && file.size<1200000){ URL.revokeObjectURL(url); resolve({blob:file,type:file.type}); return; }
+        var cw=Math.max(1,Math.round(w*scale)), ch=Math.max(1,Math.round(h*scale));
+        try{
+          var cv=document.createElement("canvas"); cv.width=cw; cv.height=ch;
+          cv.getContext("2d").drawImage(img,0,0,cw,ch);
+          cv.toBlob(function(blob){
+            URL.revokeObjectURL(url);
+            if(blob) resolve({blob:blob,type:"image/jpeg"});
+            else resolve({blob:file,type:file.type});
+          },"image/jpeg",0.85);
+        }catch(e){ URL.revokeObjectURL(url); resolve({blob:file,type:file.type}); }
+      };
+      img.onerror=function(){ URL.revokeObjectURL(url); resolve({blob:file,type:file.type||"image/jpeg"}); };
+      img.src=url;
+    });
+  }
+  function driveMultipartUpload(blob, mime, name, onProgress){
+    return new Promise(function(resolve,reject){
+      var boundary="interior-"+Date.now()+"-"+Math.random().toString(36).slice(2);
+      var meta={name:name, mimeType:mime};
+      var pre="--"+boundary+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"
+        +JSON.stringify(meta)+"\r\n--"+boundary+"\r\nContent-Type: "+mime+"\r\n\r\n";
+      var post="\r\n--"+boundary+"--";
+      var body=new Blob([pre, blob, post], {type:"multipart/related; boundary="+boundary});
+      var xhr=new XMLHttpRequest();
+      xhr.open("POST","https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink");
+      xhr.setRequestHeader("Authorization","Bearer "+accessToken);
+      xhr.setRequestHeader("Content-Type","multipart/related; boundary="+boundary);
+      if(xhr.upload && onProgress){
+        xhr.upload.onprogress=function(e){ if(e.lengthComputable) onProgress(e.loaded/e.total); };
+      }
+      xhr.onload=function(){
+        var res=null; try{ res=JSON.parse(xhr.responseText); }catch(e){}
+        if(xhr.status>=200&&xhr.status<300&&res&&res.id){ resolve(res); }
+        else {
+          var m=(res&&res.error&&res.error.message)||("Upload failed ("+xhr.status+")");
+          var err=new Error(m); err.status=xhr.status; reject(err);
+        }
+      };
+      xhr.onerror=function(){ reject(new Error("Upload failed — network error")); };
+      xhr.send(body);
+    });
+  }
+  // Without this the link only opens for the uploader.
+  function makeFilePublic(fileId){
+    return fetch("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(fileId)+"/permissions",{
+      method:"POST",
+      headers:{ "Authorization":"Bearer "+accessToken, "Content-Type":"application/json" },
+      body:JSON.stringify({role:"reader",type:"anyone"})
+    }).then(function(r){ if(!r.ok) throw new Error("Could not share the photo by link ("+r.status+")"); return r.json(); });
+  }
+  function uploadPhoto(file, onProgress){
+    return ensureToken(false)
+      .then(function(){ return resizeImage(file); })
+      .then(function(out){
+        var name=(file.name||"photo")+"";
+        if(out.type==="image/jpeg" && !/\.jpe?g$/i.test(name)) name=name.replace(/\.[^.]+$/,"")+".jpg";
+        return driveMultipartUpload(out.blob, out.type||"image/jpeg", name, onProgress);
+      })
+      .then(function(res){
+        return makeFilePublic(res.id)
+          .catch(function(e){ banner("Photo uploaded, but sharing it by link failed: "+esc(e.message)+". It may not load on other devices.","warn"); })
+          .then(function(){ return "https://drive.google.com/uc?id="+res.id; });
+      });
+  }
+
+  /* ---------------- confirm modal ---------------- */
+  var confirmResolver=null;
+  function openConfirm(msg, yesLabel, danger){
+    els.confirmMsg.textContent=msg;
+    els.confirmYes.textContent=yesLabel||"Delete";
+    var isDanger=(danger!==false);
+    els.confirmYes.className="btn"+(isDanger?" danger":"");
+    els.confirmBack.classList.add("open");
+    return new Promise(function(res){ confirmResolver=res; });
+  }
+  function closeConfirm(ok){
+    els.confirmBack.classList.remove("open");
+    if(confirmResolver){ var r=confirmResolver; confirmResolver=null; r(ok); }
+  }
+  els.confirmYes.addEventListener("click",function(){closeConfirm(true);});
+  els.confirmNo.addEventListener("click",function(){closeConfirm(false);});
+  els.confirmBack.addEventListener("click",function(e){ if(e.target===els.confirmBack)closeConfirm(false); });
+
+  /* ---------------- list interactions ---------------- */
+  function needsAuth(){
+    if(state.signedIn) return false;
+    if(!configured()){ openModal(); } else { connect(true); }
+    return true;
+  }
+  els.rooms.addEventListener("click",function(ev){
+    var t=ev.target;
+    var cyc=t.closest?t.closest(".cycle"):null;
+    if(cyc){ var e0=state.byId[cyc.getAttribute("data-id")]; if(e0)cycleStatus(e0); return; }
+    var editBtn=t.closest?t.closest(".edit"):null;
+    if(editBtn){ var e1=state.byId[editBtn.getAttribute("data-id")]; if(e1)openTaskModal(e1,null); return; }
+    var delBtn=t.closest?t.closest(".del"):null;
+    if(delBtn){ var e2=state.byId[delBtn.getAttribute("data-id")]; if(e2)doDeleteTask(e2); return; }
+    var add=t.closest?t.closest(".roomadd"):null;
+    if(add){ openTaskModal(null, add.getAttribute("data-room")); return; }
+    var ren=t.closest?t.closest(".roomrename"):null;
+    if(ren){ openRename(ren.getAttribute("data-room")); return; }
+    var dr=t.closest?t.closest(".roomdel"):null;
+    if(dr){ openDeleteRoom(dr.getAttribute("data-room")); return; }
+    var head=t.closest?t.closest(".room-head"):null;
+    if(head){ var rm=head.getAttribute("data-room"); state.expanded[rm]=!state.expanded[rm]; renderRooms(); return; }
+  });
+
+  /* ---------------- status cycling ---------------- */
+  function cycleStatus(task){
+    if(needsAuth())return;
+    var orig={row:task.row,titleCol:task.titleCol,videoCol:task.videoCol,title:task.title,
+      description:task.description,status:task.status,image:task.image,video:task.video};
+    var next=nextStatus(task.status);
+    task.status=next; renderAll(); banner("");
+    ensureToken(false)
+      .then(function(){ return guardedUpdate(orig,{title:task.title,description:task.description,status:next,image:task.image,video:task.video}); })
+      .then(function(){ return refresh(); })
+      .catch(function(err){ task.status=orig.status; renderAll(); handleApiError(err); });
+  }
+
+  /* ---------------- delete task ---------------- */
+  function doDeleteTask(task){
+    if(needsAuth())return;
+    openConfirm("Delete this task?\n\n"+(task.title||"—")+"\n\nIts row in the sheet is cleared (the row itself stays, so nothing shifts). An uploaded photo stays in your Drive.").then(function(ok){
+      if(!ok)return;
+      var idx=state.tasks.indexOf(task);
+      if(idx!==-1)state.tasks.splice(idx,1);
+      renderAll();banner("");
+      ensureToken(false).then(function(){ return clearTask(task); }).then(function(){ return refresh(); })
+        .catch(function(err){
+          if(idx!==-1)state.tasks.splice(idx,0,task);
+          renderAll();handleApiError(err);
+        });
+    });
+  }
+
+  /* ---------------- task modal (add + edit) ---------------- */
+  var taskImage="";     // Drive URL for the currently attached photo
+  var uploading=false;
+
+  function fillRoomSelect(sel, selected){
+    var rooms=state.rooms.slice();
+    if(selected && rooms.indexOf(selected)===-1) rooms.unshift(selected);
+    var opts="";
+    rooms.forEach(function(r){ opts+='<option value="'+esc(r)+'">'+esc(r)+'</option>'; });
+    opts+='<option value="__new__">＋ New room…</option>';
+    sel.innerHTML=opts;
+    if(selected) sel.value=selected; else if(rooms.length) sel.value=rooms[0];
+  }
+  function setPhoto(url){
+    taskImage=trimStr(url);
+    if(taskImage){
+      els.photoPrevImg.src=imgSrc(taskImage);
+      els.photoPrev.classList.add("show");
+      els.removePhotoBtn.classList.remove("hidden");
+      els.pickGalleryBtn.textContent="🖼 Replace";
+    } else {
+      els.photoPrevImg.removeAttribute("src");
+      els.photoPrev.classList.remove("show");
+      els.removePhotoBtn.classList.add("hidden");
+      els.pickGalleryBtn.textContent="🖼 Add Photo";
+    }
+  }
+  function openTaskModal(task, presetRoom){
+    if(needsAuth())return;
+    if(!state.rooms.length && !presetRoom){
+      banner("Create a room first — tap ＋ New Room.","warn"); return;
+    }
+    state.editing=task||null;
+    els.taskTitle.textContent=task?"Edit Task":"Add Task";
+    els.taskSubtitle.textContent=task
+      ? "Change any field, then Save. Changing the room moves the task to that table."
+      : "Title is required. Everything else is optional.";
+    fillRoomSelect(els.taskRoom, task?task.room:(presetRoom||state.rooms[0]||""));
+    els.taskTitleInput.value=task?task.title:"";
+    els.taskDesc.value=task?(task.description||""):"";
+    els.taskStatus.value=task?task.status:"To Do";
+    els.taskVideo.value=task?(task.video||""):"";
+    setPhoto(task?task.image:"");
+    els.taskErr.textContent="";
+    setUploading(false);
+    els.taskBack.classList.add("open");
+    els.taskTitleInput.focus();
+  }
+  function closeTaskModal(){
+    els.taskBack.classList.remove("open"); state.editing=null; taskImage=""; setUploading(false);
+    els.fileGallery.value=""; els.fileCamera.value="";
+  }
+  els.taskCancel.addEventListener("click",closeTaskModal);
+  els.taskBack.addEventListener("click",function(e){ if(e.target===els.taskBack&&!uploading)closeTaskModal(); });
+  els.addTaskBtn.addEventListener("click",function(){ openTaskModal(null,null); });
+
+  els.taskRoom.addEventListener("change",function(){
+    if(els.taskRoom.value!=="__new__") return;
+    var prev=state.editing?state.editing.room:(state.rooms[0]||"");
+    els.taskRoom.value=prev; // revert while the create modal is open
+    openNewRoom(function(name){
+      var sentinel=els.taskRoom.querySelector('option[value="__new__"]');
+      var opt=document.createElement("option"); opt.value=name; opt.textContent=name;
+      els.taskRoom.insertBefore(opt, sentinel);
+      els.taskRoom.value=name;
+    });
+  });
+  els.taskNewRoom.addEventListener("click",function(){
+    openNewRoom(function(name){
+      var sentinel=els.taskRoom.querySelector('option[value="__new__"]');
+      var opt=document.createElement("option"); opt.value=name; opt.textContent=name;
+      els.taskRoom.insertBefore(opt, sentinel);
+      els.taskRoom.value=name;
+    });
+  });
+
+  function setUploading(on, frac){
+    uploading=!!on;
+    els.pickGalleryBtn.disabled=on; els.pickCameraBtn.disabled=on;
+    els.removePhotoBtn.disabled=on; els.taskSave.disabled=on;
+    if(on){
+      els.upBar.classList.add("show");
+      els.upBarFill.style.width=Math.round((frac||0)*100)+"%";
+      els.photoHint.textContent="Uploading photo to your Drive…";
+    } else {
+      els.upBar.classList.remove("show"); els.upBarFill.style.width="0%";
+      els.photoHint.textContent="Resized to 1600px before upload. Stored in your Drive, shared by link.";
+    }
+  }
+  function onFilePicked(input){
+    var file=input.files&&input.files[0];
+    input.value="";
+    if(!file)return;
+    els.taskErr.textContent="";
+    // Instant local preview while the real upload runs.
+    var localUrl=URL.createObjectURL(file);
+    els.photoPrevImg.src=localUrl; els.photoPrev.classList.add("show");
+    setUploading(true,0);
+    uploadPhoto(file,function(frac){ setUploading(true,frac); })
+      .then(function(url){
+        setUploading(false);
+        URL.revokeObjectURL(localUrl);
+        setPhoto(url);
+      })
+      .catch(function(err){
+        setUploading(false);
+        URL.revokeObjectURL(localUrl);
+        setPhoto(taskImage); // restore whatever was attached before
+        els.taskErr.textContent=(err&&err.message)||"Photo upload failed";
+        if(err&&err.status===401){ requestToken(false).catch(function(){}); }
+      });
+  }
+  els.pickGalleryBtn.addEventListener("click",function(){ els.fileGallery.click(); });
+  els.pickCameraBtn.addEventListener("click",function(){ els.fileCamera.click(); });
+  els.fileGallery.addEventListener("change",function(){ onFilePicked(els.fileGallery); });
+  els.fileCamera.addEventListener("change",function(){ onFilePicked(els.fileCamera); });
+  els.removePhotoBtn.addEventListener("click",function(){
+    setPhoto("");
+    els.photoHint.textContent="Photo unlinked from this task. The file stays in your Drive.";
+  });
+
+  els.taskSave.addEventListener("click",function(){
+    if(uploading)return;
+    var room=els.taskRoom.value, title=els.taskTitleInput.value.trim();
+    var desc=els.taskDesc.value.trim(), status=normStatus(els.taskStatus.value);
+    var video=els.taskVideo.value.trim();
+    if(!room||room==="__new__"){ els.taskErr.textContent="Pick or create a room."; return; }
+    if(!title){ els.taskErr.textContent="Title is required."; return; }
+    if(video && !/^https?:\/\//i.test(video)){ els.taskErr.textContent="Video link must start with http:// or https://"; return; }
+    var vals={title:title,description:desc,status:status,image:taskImage,video:video};
+    var entry=state.editing;
+    closeTaskModal();
+    banner("");
+
+    if(!entry){
+      // add: optimistic card, then write (the photo is already in Drive by now)
+      var optimistic={room:room,title:title,description:desc,status:status,image:vals.image,video:video,_pending:true};
+      state.pending.unshift(optimistic);
+      state.expanded[room]=true;
+      renderAll();
+      ensureToken(false).then(function(){ return appendTask({room:room,title:title,description:desc,status:status,image:vals.image,video:video}); })
+        .then(function(){ return refresh(); })
+        .catch(function(err){
+          var i=state.pending.indexOf(optimistic); if(i!==-1)state.pending.splice(i,1);
+          renderAll(); handleApiError(err);
+        });
+      return;
+    }
+
+    // edit: snapshot for guarded write + rollback
+    var orig={row:entry.row,titleCol:entry.titleCol,descCol:entry.descCol,statusCol:entry.statusCol,
+      imgCol:entry.imgCol,videoCol:entry.videoCol,room:entry.room,title:entry.title,
+      description:entry.description,status:entry.status,image:entry.image,video:entry.video};
+    entry.room=room; entry.title=title; entry.description=desc; entry.status=status; entry.image=vals.image; entry.video=video;
+    state.expanded[room]=true;
+    renderAll();
+
+    var op;
+    if(room===orig.room){
+      op=ensureToken(false).then(function(){ return guardedUpdate(orig, vals); });
+    } else {
+      // move: write into the destination table first, then clear the old cells
+      op=ensureToken(false)
+        .then(function(){ return appendTask({room:room,title:title,description:desc,status:status,image:vals.image,video:video}); })
+        .then(function(){ return clearTask(orig); });
+    }
+    op.then(function(){ return refresh(); }).catch(function(err){
+      entry.room=orig.room; entry.title=orig.title; entry.description=orig.description;
+      entry.status=orig.status; entry.image=orig.image; entry.video=orig.video;
+      renderAll(); handleApiError(err);
+    });
+  });
+
+  /* ---------------- new room modal ---------------- */
+  var newRoomCb=null;
+  function openNewRoom(onCreated){
+    if(needsAuth())return;
+    newRoomCb=onCreated||null;
+    els.newRoomName.value=""; els.newRoomErr.textContent="";
+    els.newRoomBack.classList.add("open"); els.newRoomName.focus();
+  }
+  function closeNewRoom(){ els.newRoomBack.classList.remove("open"); newRoomCb=null; }
+  els.newRoomBtn.addEventListener("click",function(){
+    openNewRoom(function(name){ state.expanded[name]=true; renderRooms(); });
+  });
+  els.newRoomCancel.addEventListener("click",closeNewRoom);
+  els.newRoomBack.addEventListener("click",function(e){ if(e.target===els.newRoomBack)closeNewRoom(); });
+  els.newRoomName.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); els.newRoomCreate.click(); } });
+  els.newRoomCreate.addEventListener("click",function(){
+    var name=els.newRoomName.value.trim();
+    if(!name){ els.newRoomErr.textContent="Enter a room name."; return; }
+    if(state.rooms.some(function(r){return normName(r)===normName(name);})){ els.newRoomErr.textContent="That room already exists."; return; }
+    els.newRoomErr.textContent=""; els.newRoomCreate.disabled=true;
+    els.newRoomCreate.innerHTML='<span class="spin"></span>Creating…';
+    ensureToken(false).then(function(){ return createRoom(name); }).then(function(){ return refresh(); })
+      .then(function(){
+        var cb=newRoomCb; closeNewRoom();
+        if(cb) cb(name);
+        banner("Room '"+esc(name)+"' created.","info");
+      })
+      .catch(function(err){ els.newRoomErr.textContent=(err&&err.message)||"Could not create room"; })
+      .then(function(){ els.newRoomCreate.disabled=false; els.newRoomCreate.textContent="Create"; });
+  });
+
+  /* ---------------- rename room ---------------- */
+  var renaming=null;
+  function openRename(room){
+    if(needsAuth())return;
+    renaming=room; els.renameName.value=room; els.renameErr.textContent="";
+    els.renameBack.classList.add("open"); els.renameName.focus(); els.renameName.select();
+  }
+  function closeRename(){ els.renameBack.classList.remove("open"); renaming=null; }
+  els.renameCancel.addEventListener("click",closeRename);
+  els.renameBack.addEventListener("click",function(e){ if(e.target===els.renameBack)closeRename(); });
+  els.renameName.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); els.renameSave.click(); } });
+  els.renameSave.addEventListener("click",function(){
+    var oldName=renaming; if(!oldName)return;
+    var name=els.renameName.value.trim();
+    if(!name){ els.renameErr.textContent="Enter a name."; return; }
+    if(normName(name)===normName(oldName)){ closeRename(); return; }
+    if(state.rooms.some(function(r){return r!==oldName && normName(r)===normName(name);})){ els.renameErr.textContent="That room already exists."; return; }
+    els.renameErr.textContent=""; els.renameSave.disabled=true; els.renameSave.innerHTML='<span class="spin"></span>Renaming…';
+    ensureToken(false).then(function(){ return renameRoom(oldName,name); }).then(function(){ return refresh(); })
+      .then(function(){
+        if(state.expanded[oldName]){ state.expanded[name]=true; delete state.expanded[oldName]; }
+        closeRename(); renderRooms(); banner("Renamed to '"+esc(name)+"'.","info");
+      })
+      .catch(function(err){ els.renameErr.textContent=(err&&err.message)||"Could not rename"; })
+      .then(function(){ els.renameSave.disabled=false; els.renameSave.textContent="Rename"; });
+  });
+
+  /* ---------------- delete room (never orphans tasks) ---------------- */
+  var delRoom=null;
+  function closeDelRoom(){ els.delRoomBack.classList.remove("open"); delRoom=null; }
+  els.delRoomBack.addEventListener("click",function(e){ if(e.target===els.delRoomBack)closeDelRoom(); });
+  els.delRoomTarget.addEventListener("change",function(){
+    if(els.delRoomTarget.value!=="__new__") return;
+    var first=els.delRoomTarget.options[0];
+    els.delRoomTarget.value=(first && first.value!=="__new__")?first.value:"";
+    openNewRoom(function(name){
+      var sent=els.delRoomTarget.querySelector('option[value="__new__"]');
+      var o=document.createElement("option"); o.value=name; o.textContent=name;
+      els.delRoomTarget.insertBefore(o,sent); els.delRoomTarget.value=name;
+    });
+  });
+  function openDeleteRoom(room){
+    if(needsAuth())return;
+    delRoom=room;
+    var tasks=state.tasks.filter(function(t){return t.room===room;});
+    els.delRoomErr.textContent=""; els.delRoomActions.innerHTML="";
+    function addBtn(label,cls,fn){
+      var b=document.createElement("button"); b.type="button"; b.className="btn "+(cls||"");
+      b.textContent=label; b.addEventListener("click",fn); els.delRoomActions.appendChild(b);
+    }
+    if(tasks.length){
+      els.delRoomMsg.textContent="'"+room+"' has "+tasks.length+" "+(tasks.length===1?"task":"tasks")+". Tasks won't be deleted automatically — move them to another room, or delete them together with the room.";
+      els.delRoomMoveWrap.classList.remove("hidden");
+      var others=state.rooms.filter(function(r){return r!==room;});
+      var opts=""; others.forEach(function(r){ opts+='<option value="'+esc(r)+'">'+esc(r)+'</option>'; });
+      opts+='<option value="__new__">＋ New room…</option>';
+      els.delRoomTarget.innerHTML=opts;
+      addBtn("Move all "+tasks.length+" & delete room","",function(){ doMoveAllThenDelete(room, tasks); });
+      addBtn("Delete all "+tasks.length+" tasks & room","danger",function(){ doWipeRoom(room, tasks.length); });
+      addBtn("Cancel","ghost",closeDelRoom);
+    } else {
+      els.delRoomMsg.textContent="Delete empty room '"+room+"'? This removes its table from the sheet.";
+      els.delRoomMoveWrap.classList.add("hidden");
+      addBtn("Delete room","danger",function(){ doWipeRoom(room, 0); });
+      addBtn("Cancel","ghost",closeDelRoom);
+    }
+    els.delRoomBack.classList.add("open");
+  }
+  function moveAllSeq(tasks, target){
+    return tasks.reduce(function(pr, t){
+      return pr.then(function(){
+        return appendTask({room:target,title:t.title,description:t.description,status:t.status,image:t.image,video:t.video})
+          .then(function(){ return clearTask(t); });
+      });
+    }, Promise.resolve());
+  }
+  function doMoveAllThenDelete(room, tasks){
+    var target=els.delRoomTarget.value;
+    if(!target||target==="__new__"){ els.delRoomErr.textContent="Choose a room to move tasks into."; return; }
+    openConfirm("Move all "+tasks.length+" "+(tasks.length===1?"task":"tasks")+" from '"+room+"' into '"+target+"', then delete '"+room+"'?","Move & delete",false).then(function(ok){
+      if(!ok) return;
+      closeDelRoom(); banner("Moving "+tasks.length+" "+(tasks.length===1?"task":"tasks")+"…","info");
+      ensureToken(false).then(function(){ return moveAllSeq(tasks, target); })
+        .then(function(){ return deleteRoomTable(room); })
+        .then(function(){ return refresh(); })
+        .then(function(){ banner("Moved "+tasks.length+" to '"+esc(target)+"' and deleted '"+esc(room)+"'.","info"); })
+        .catch(function(err){ refresh(); handleApiError(err); });
+    });
+  }
+  function doWipeRoom(room, n){
+    var msg=n>0
+      ? "Permanently delete "+n+" "+(n===1?"task":"tasks")+" AND room '"+room+"'? This clears them from the sheet and can't be undone. Uploaded photos stay in your Drive."
+      : "Delete room '"+room+"'?";
+    openConfirm(msg, n>0?"Delete all":"Delete", true).then(function(ok){
+      if(!ok) return;
+      closeDelRoom(); banner("Deleting…","info");
+      ensureToken(false).then(function(){ return deleteRoomTable(room); })
+        .then(function(){ return refresh(); })
+        .then(function(){ banner("Deleted room '"+esc(room)+"'"+(n>0?" and "+n+" "+(n===1?"task":"tasks")+".":"."),"info"); })
+        .catch(function(err){ refresh(); handleApiError(err); });
+    });
+  }
+
+  /* ---------------- settings modal ---------------- */
+  function openModal(){
+    els.clientIdInput.value=state.clientId; els.sheetInput.value=state.sheetId;
+    els.tabInput.value=state.tab;
+    els.authState.textContent=state.signedIn?"Signed in ✓":"Not signed in.";
+    els.modalBack.classList.add("open");
+  }
+  function closeModal(){els.modalBack.classList.remove("open");}
+  els.settingsBtn.addEventListener("click",openModal);
+  els.authBtn.addEventListener("click",function(){connect(true);});
+  els.cancelSettings.addEventListener("click",closeModal);
+  els.modalBack.addEventListener("click",function(e){if(e.target===els.modalBack)closeModal();});
+
+  function persistSettings(){
+    state.clientId=els.clientIdInput.value.trim();
+    state.sheetId=parseSheetId(els.sheetInput.value);
+    state.tab=els.tabInput.value.trim()||"Interior";
+    localStorage.setItem(LS_CLIENT,state.clientId);
+    localStorage.setItem(LS_SHEET,state.sheetId);
+    localStorage.setItem(LS_TAB,state.tab);
+  }
+  els.saveSettings.addEventListener("click",function(){
+    persistSettings();renderAll();updateStatus();closeModal();
+    if(configured()){banner("Connecting…","info");connect(state.signedIn?false:true);}
+  });
+  els.connectBtn.addEventListener("click",function(){
+    persistSettings();
+    if(!configured()){banner("Enter your Client ID and Sheet link first.","warn");return;}
+    els.connectBtnText.textContent="Opening Google…";
+    connect(true).then(function(){els.connectBtnText.textContent="Signed in ✓";})
+      .catch(function(){els.connectBtnText.textContent="Sign in with Google";});
+  });
+
+  /* ---------------- polling ---------------- */
+  var pollTimer=null;
+  function startPolling(){
+    if(pollTimer)clearInterval(pollTimer);
+    pollTimer=setInterval(function(){
+      // Never poll mid-write: a refresh would fight the optimistic state.
+      if(state.signedIn&&document.visibilityState==="visible"&&!uploading&&!els.taskBack.classList.contains("open")) refresh();
+    },POLL_MS);
+  }
+  document.addEventListener("visibilitychange",function(){
+    if(document.visibilityState==="visible"&&state.signedIn&&!uploading&&!els.taskBack.classList.contains("open")) refresh();
+  });
+
+  /* ---------------- init ---------------- */
+  function init(){
+    renderAll();updateStatus();
+    if(configured()){ banner("Connecting…","info"); connect(false).catch(function(){}); }
+    else { banner("Welcome! Tap ⚙︎ to connect your Google Sheet.","info","Setup",openModal); }
+    startPolling();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
