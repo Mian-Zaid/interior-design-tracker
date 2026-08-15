@@ -85,7 +85,7 @@ lengths, and blank gaps. The parser **auto-detects each block** by scanning ever
 known header anchor, then reads the nearest non-empty cell above it as the block title.
 
 - expense-tracker anchors on `Description` (→ `Description | Amount | Date`)
-- this app anchors on `Title` (→ `Title | Description | Status | Image URL | Video URL`)
+- this app anchors on `Title` (→ `Title | Description | Status | Image URL | Video URL | Updated`)
 
 Two refinements worth carrying forward:
 
@@ -98,6 +98,64 @@ Two refinements worth carrying forward:
   separately so appends land after everything.
 
 Design your parser to discover structure from anchors, not fixed cell coordinates.
+
+## Growing the schema after ship
+
+Adding a column to a layout real people also edit by hand is the risky kind of change. Two
+rules made it safe here, when a `Updated` timestamp column was added to an existing
+five-column table:
+
+- **Detect width, don't assume it.** The parser looks for the new header (`Updated` at
+  `titleCol+5`) and records `lastCol` per table. A table without it is a legacy table: it
+  still parses, still renders, and simply writes five cells instead of six. Never let a
+  schema bump turn into a hard requirement.
+- **Auto-widen only into verified-empty space.** On first load the app offers to write the
+  new header, but first scans the entire target column across the table's row range. If a
+  single cell is occupied it skips that table and says so, rather than eating a neighbour's
+  gap column. Same never-overwrite contract as every other write.
+
+The fallback has to be graceful, not just non-fatal: rows with no timestamp sort by sheet
+position, so a legacy table looks slightly stale rather than broken.
+
+**Also switch writes to `RAW` once user-authored text can reach a cell.** With
+`USER_ENTERED`, an item titled `=1+1` becomes a formula in the user's sheet. Nothing in this
+app needs Sheets to interpret input, so `RAW` is strictly safer.
+
+## Derived views over the same parse
+
+Once the sheet is parsed into a flat list, extra views are nearly free — they are filters
+and sorts, not new data:
+
+| View | What it is |
+|------|-----------|
+| Room checklist | the list filtered to one room, active first, done last |
+| Board | the same list bucketed by status, optionally filtered by room |
+| Room tiles | per-room counts, with the most recent photo as a cover |
+
+None of them touch the sheet differently: moving a card between board columns is the exact
+same single-row write as tapping the status circle in the list. Build the write path once
+and let every view call it.
+
+Two things worth copying:
+
+- **Cap the finished bucket.** Done items accumulate forever and nobody scrolls them. Show
+  the newest 10 with a "show more" that pages by 10. Cheap, and it keeps the list useful in
+  month six.
+- **Hash routing, not view flags.** `#/`, `#/room/Kitchen`, `#/board` gives the browser back
+  button and Android's back gesture for free in a single-page file. A `state.view` variable
+  alone strands users who press back.
+
+## Drag-and-drop on touch, honestly
+
+HTML5 drag-and-drop does not work on touch. Pointer Events do: `pointerdown` records the
+origin, `pointermove` past a ~7px threshold lifts the card (`position:fixed` + a placeholder
+so the column doesn't collapse), `pointerup` hit-tests the columns. `touch-action:none` on
+the card stops the page scrolling under the drag.
+
+The part that matters more than the mechanics: **ship a non-drag path alongside it.** Drag
+is a hidden gesture with no affordance and it is fiddly one-handed — the exact failure mode
+for a non-technical user. Plain ‹ › buttons on each card do the same job, work with a
+keyboard and a screen reader, and cost a few lines.
 
 ## Adding Drive file uploads
 
@@ -209,6 +267,7 @@ regressions without ever touching a real sheet.
 > write back with optimistic updates + 20s polling paused when the tab is hidden. Writes must
 > be safe: re-read fresh, only write into empty cells, never insert/delete rows, and guard
 > every in-place update against the row having changed. Uploads go to Drive via multipart
-> XHR, then `permissions.create(anyone, reader)`, storing the file URL in a cell. Mobile-first,
+> XHR, then `permissions.create(anyone, reader)`, storing the file URL in a cell. Route views
+> off `location.hash` so the back button works. Mobile-first,
 > light/dark, rounded cards. Host on GitHub Pages — remind me to add the Pages origin to
 > Authorized JavaScript origins. Then write a README with the Google Cloud setup steps.
