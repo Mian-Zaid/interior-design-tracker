@@ -116,9 +116,24 @@ tomorrow.
 | Write several ranges at once | `spreadsheets.values.batchUpdate({resource:{valueInputOption, data:[{range,values},…]}})` |
 | Clear a region | `spreadsheets.values.clear({range, resource:{}})` |
 
-Note there is no `values.append` and no `batchUpdate` with row/column requests anywhere —
-both would shift a human's layout. Everything is a targeted `update` into verified-empty
-cells.
+There is no `values.append` and no `insertDimension` anywhere — both shift a human's layout.
+Everything is a targeted `update` into verified-empty cells.
+
+**But the grid has a hard edge, and `values.update` does not move it.** A tab is a fixed
+rectangle (a new sheet is 1000 × 26); a write outside it fails with
+`Range (…) exceeds grid limits`, it does not silently grow. `values.append` grows the sheet,
+which is one more reason its convenience is a trap — you get expansion bundled with row
+insertion you didn't ask for.
+
+So before writing outward, check the tab's `gridProperties` and extend it with
+`spreadsheets.batchUpdate` + **`appendDimension`**. Appending at the far edge adds empty
+rows/columns beyond all existing content and shifts nothing, which keeps the safe-write rule
+intact — unlike `insertDimension`, which moves everything after the insertion point.
+
+This is easy to miss because it only bites at a boundary: here each block is 6 columns plus a
+gap, so blocks 1–3 fit inside the default 26 and the failure appears only when someone
+creates the **fourth**. If your layout grows sideways, test at the boundary, not with two
+blocks.
 
 ## Handling messy, human-maintained sheets
 
@@ -141,6 +156,23 @@ Two refinements worth carrying forward:
   separately so appends land after everything.
 
 Design your parser to discover structure from anchors, not fixed cell coordinates.
+
+## Report the API's error, not your own
+
+`gapi.client` rejects with a **plain object** shaped `{status, result:{error:{code,message}}}`
+— note there is **no `.message` property**. Code written as:
+
+```js
+.catch(err => show(err.message || "Could not create room"))
+```
+
+therefore shows the fallback for *every* API failure, and the real cause never reaches the
+user or the bug report. Dig into `result.error.message` first and keep the fallback for
+genuine `Error` objects thrown by your own validation.
+
+The symptom is distinctive: a generic message that is identical no matter what went wrong.
+If a user reports one of your fallback strings verbatim, suspect the error path before the
+feature.
 
 ## Growing the schema after ship
 

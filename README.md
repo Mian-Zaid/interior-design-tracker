@@ -365,6 +365,11 @@ Settings are stored per-browser, so enter them once on each device.
 - **"Sheet or tab not found (404)":** re-check the Sheet link/ID and Tab name in ⚙ settings.
 - **"No room tables found":** the tab has no `Title` header row, or the header is missing its
   neighbouring `Description`/`Status` cell. Tap **＋ New Room** and let the app write one.
+- **"Could not create room" / "exceeds grid limits":** a Google Sheet tab has a fixed grid —
+  a new one is 1000 rows × 26 columns — and each room takes 6 columns plus a gap, so the 4th
+  room needs column 27. The app now widens the tab automatically (appending columns at the
+  far right, which shifts nothing). If you're on an older build, add columns to the tab by
+  hand and it'll work.
 - **"Row changed — refresh and try again":** someone (or you, on another device) edited that
   item's row between your last sync and your write. The app refuses to clobber it; the next
   poll pulls in their change and you can redo yours.
