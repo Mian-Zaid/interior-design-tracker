@@ -252,6 +252,50 @@ the field belongs to *rows*, or when you'd need a header to explain it.
 once at least one block has a floor; with none, the home page is byte-for-byte what it was
 before the feature. An optional field that adds permanent chrome isn't optional in practice.
 
+### One-to-many in one cell
+
+The same instinct scales a *row* field from one value to many. Attaching several photos to an
+item did not need five `Image URL` columns or a second sheet keyed by row: the existing cell
+holds a **whitespace-separated list**, written back with newlines so it stays readable in
+Sheets.
+
+The separator is the whole design decision, and it should be something the values **cannot
+contain**. A URL can't contain a space, so splitting on `/\s+/` is unambiguous, needs no
+escaping, and never has to care whether the cell came from the app or a person's keyboard.
+Splitting on a comma would have been a bug waiting for the first value that contains one.
+
+What falls out for free:
+
+- **A single-value cell is already a valid one-element list**, so shipping this to existing
+  sheets is a no-op — no migration pass, no version flag, no "legacy row" branch.
+- **Hand-editing keeps working.** Someone pasting two links separated by a space in Sheets
+  gets exactly what the app would have written.
+- **Order carries meaning at zero cost.** First = the cover, so "make this the cover" is an
+  array move, and every downstream view (list row, card, tile) just reads element 0.
+
+Keep the raw cell string as the model and derive the list at the edges (`imgList(cell)`,
+`imgJoin(array)`). Every existing guard, snapshot, and rollback path keeps comparing plain
+strings, so the concurrency story is unchanged.
+
+Where this stops working: when you need to query or sort *by* the individual values, or when
+the list can grow unbounded. Cap it (20 here) and make the cap a UI message, not a silent
+truncation.
+
+### Batch uploads: sequential, and partial-success by default
+
+Several files at once is one place where the obvious implementation is the wrong one.
+
+- **Upload one at a time, not `Promise.all`.** The user is on mobile data in a half-finished
+  room; parallel requests fight for the same uplink and turn one honest progress bar into
+  several meaningless ones. Serial gives you `(finished + currentFraction) / total` for free.
+- **Commit each success immediately.** Append the URL as each file lands, so a failure on
+  file 4 of 6 keeps the three that worked. An all-or-nothing batch makes the user re-pick and
+  re-upload photos that were already in their Drive — and those strays are never cleaned up.
+- **Show the pending ones.** Render local `URL.createObjectURL` thumbnails the instant the
+  picker closes and swap each for the real URL as it resolves. Without it the UI is empty for
+  as long as the whole batch takes. Revoke every object URL on success, failure *and* dialog
+  close, or you leak them.
+
 ## Derived views over the same parse
 
 Once the sheet is parsed into a flat list, extra views are nearly free — they are filters
@@ -299,6 +343,17 @@ thumbnail (the 46px version blown up looks terrible), lock body scroll while it'
 drop the `src` on close so a big download in flight is abandoned. Give it a close button, a
 backdrop tap, and Escape — and an "open original" link for the case where the render fails,
 because `onerror` on an `<img>` is the one media failure you *can* detect.
+
+**Once the viewer holds a set, tap-to-dismiss and swipe-to-page collide.** A swipe ends in a
+`click` on whatever was under the finger, so a backdrop-closes-the-viewer rule will close it
+every time the user swipes anywhere but the image itself. Set a flag on the swipe and let the
+next click consume it. The same applies to the arrows and dots — they sit *on* the backdrop,
+so exclude them explicitly or every page-forward tap also dismisses.
+
+Give a gallery all four ways in: swipe, on-screen ‹ ›, arrow keys, and a jump target
+(dots or thumbnails). Swipe alone is invisible and desktop-hostile; arrows alone are a lot of
+taps. And **render none of it for a set of one** — a counter reading "1 / 1" next to two dead
+arrows is worse than the plain viewer it replaced.
 
 **A video should leave for the platform's app.** The mechanism is a real `<a href>` — a
 genuine top-level navigation is what lets iOS Universal Links and Android App Links hand off
@@ -422,6 +477,10 @@ The new capability in this app, and the part worth copying verbatim.
    Treat a failure here as non-fatal but *warn loudly* — the file uploaded fine, it just
    won't render on other devices. And tell the user in-app what this permission means: link
    sharing is a real privacy trade-off, not an implementation detail.
+4b. **Give the test double realistic ids.** A stub handing back `"UP1"` silently fell through
+   the `[a-zA-Z0-9_\-]{10,}` file-id regex, so the app rendered the raw URL instead of a
+   thumbnail and the assertion failed on working code. Fake data has to satisfy the same
+   shape constraints as the real thing, or the harness invents bugs.
 5. **Store `https://drive.google.com/uc?id=FILE_ID`** in the sheet cell, but **render**
    `https://drive.google.com/thumbnail?id=FILE_ID&sz=w400` in the `<img>` — the thumbnail
    endpoint is the one that reliably hot-links. Parse the file ID back out of whatever URL
