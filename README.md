@@ -188,9 +188,34 @@ Two more things worth knowing:
   It only unlinks it. Tidy up in Drive if you want the file gone. Likewise, if you upload a
   photo and then hit Cancel, the file stays in your Drive unreferenced.
 
-**Video link:** paste any URL (YouTube, a Drive video, Vimeo). YouTube URLs (`watch?v=`,
-`youtu.be/`, `/shorts/`, `/embed/`) get a thumbnail from `img.youtube.com`. If an item has
-both a photo and a video, the photo shows with a ▶ badge. Nothing is embedded or autoplayed.
+### Video links & previews
+
+Paste a link into **Video link** and a preview appears under the field, the same way a photo
+preview does. What you get depends on the platform:
+
+| Link | Preview |
+|---|---|
+| **Instagram** Reel / post / IGTV | Embedded inline (portrait), public posts only |
+| **YouTube** (`watch?v=`, `youtu.be`, `/shorts/`, `/embed`) | Thumbnail; tap ▶ to play in place |
+| **Google Drive** video | Thumbnail; tap ▶ to play in place |
+| **TikTok**, **Vimeo** | Embedded inline |
+| Anything else | A card with the hostname and an **Open ↗** link |
+
+In the checklist, an item with a video shows a tinted play tile — Instagram's gradient,
+YouTube's red — so you can tell at a glance what kind of reference it is. If an item has
+both a photo and a video, the photo wins and gets a small ▶ badge.
+
+**Why Instagram embeds rather than showing a thumbnail:** Instagram's oEmbed API has required
+a Facebook app token since 2020, so there is no way for a page with no server to fetch a
+Reel's poster image. The `/embed` endpoint needs no token, so that's what's used. Two
+consequences worth knowing:
+
+- **It only works for public posts.** A private or deleted Reel renders blank. The **Open ↗**
+  link beside every preview always works, so nothing is lost.
+- **It loads a frame from Instagram**, which means their cookies and scripts. If you'd rather
+  not, the link still works fine without opening the item.
+
+Nothing ever autoplays.
 
 ---
 

@@ -200,6 +200,42 @@ is a hidden gesture with no affordance and it is fiddly one-handed — the exact
 for a non-technical user. Plain ‹ › buttons on each card do the same job, work with a
 keyboard and a screen reader, and cost a few lines.
 
+## Previewing third-party media without an API key
+
+Not every platform lets a static page show a preview, and the differences decide the UI:
+
+| Platform | Poster image? | Approach |
+|---|---|---|
+| YouTube, Google Drive | yes, hot-linkable | `<img>` thumbnail, swap to an iframe on tap |
+| Instagram, TikTok, Vimeo | no | iframe embed directly |
+| anything else | no | a card with the hostname and an open link |
+
+**Instagram is the instructive case.** Its oEmbed endpoint has required a Facebook app token
+since 2020, so a poster frame is simply unavailable to a page with no server. `/embed`
+however needs no token and renders public posts in an iframe — so the preview is the embed
+itself. Design around the capability you actually have, rather than pretending a thumbnail
+exists.
+
+Three rules that keep this from turning into a liability:
+
+- **Always render an "Open ↗" link beside the embed.** Third-party frames fail for reasons
+  you cannot detect cross-origin — private post, deleted post, blocked frame, no network —
+  and there is no `onerror` for an iframe. The link is the fallback that always works.
+- **Prefer a poster image over an autoloaded frame** where a poster exists. An `<img>` costs
+  one request; an embed costs a third-party frame with its own scripts and cookies on every
+  render. Load the frame when the user asks for it.
+- **Tear the iframe down when the container closes.** Setting `innerHTML=""` on close stops
+  a hidden embed from continuing to load and phone home behind a dismissed modal.
+
+**Test the frame, not the attribute.** Asserting on `iframe.src` passes even when the embed
+is completely broken — a wrong route glob in the harness hid exactly that here. Assert that
+the frame *navigated*: check `page.frames()` for the expected URL and the absence of
+`chrome-error://`.
+
+Also note aspect ratio belongs on the *container*, not the `<img>`: a poster that hides
+itself via `onerror` will otherwise collapse the button to zero height and take the play
+control with it.
+
 ## Adding Drive file uploads
 
 The new capability in this app, and the part worth copying verbatim.

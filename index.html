@@ -135,7 +135,13 @@
     border:none;padding:0;cursor:pointer;display:block}
   .med img{width:100%;height:100%;object-fit:cover;display:block}
   .med .play{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:15px;background:rgba(6,20,19,.4)}
-  .med.vidonly{background:#16302e;display:grid;place-items:center;color:#fff;font-size:17px}
+  .med.vidonly{background:#16302e;color:#fff;font-size:17px}
+  .vidonly.plat-instagram{background:linear-gradient(135deg,#f9ce34,#ee2a7b 45%,#6228d7)}
+  .vidonly.plat-youtube{background:#8b1a17}
+  .vidonly.plat-tiktok{background:#0f1214}
+  .vidonly.plat-vimeo{background:#0d3f57}
+  .vidonly .play{position:absolute;inset:0;display:grid;place-items:center;color:#fff;
+    text-shadow:0 1px 4px rgba(0,0,0,.65);background:rgba(6,20,19,.18)}
   .addmed{
     width:46px;height:46px;border-radius:10px;flex:none;border:1.5px dashed var(--line);background:transparent;
     display:grid;place-items:center;color:var(--muted);font-size:20px;cursor:pointer;padding:0;
@@ -193,7 +199,7 @@
   .kmed{width:38px;height:38px;border-radius:8px;overflow:hidden;flex:none;position:relative;background:var(--sunk)}
   .kmed img{width:100%;height:100%;object-fit:cover;display:block}
   .kmed .play{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:12px;background:rgba(6,20,19,.4)}
-  .kmed.vidonly{background:#16302e;display:grid;place-items:center;color:#fff;font-size:14px}
+  .kmed.vidonly{background:#16302e;color:#fff;font-size:14px}
   .moves{display:flex;gap:5px;margin-top:7px;justify-content:flex-end}
   .mv{
     appearance:none;flex:none;width:34px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--bg);
@@ -240,6 +246,29 @@
   .minibtn:disabled{opacity:.5;cursor:not-allowed}
   .prevwrap{display:flex;gap:11px;align-items:center;margin-bottom:11px}
   .prevwrap img{width:74px;height:74px;object-fit:cover;border-radius:12px;border:1px solid var(--line);flex:none}
+  /* video preview */
+  .vidcard{margin-top:10px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--sunk)}
+  .vidcard .frame{position:relative;width:100%;background:#0b1615;display:block}
+  .vidcard .frame.r169{aspect-ratio:16/9}
+  /* Reels are vertical: pin the height and let aspect-ratio derive the width, so the
+     frame stays portrait instead of stretching to the card. */
+  .vidcard .frame.r916{aspect-ratio:9/16;height:min(300px,40vh);width:auto;margin:0 auto}
+  .vidcard iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+  /* aspect-ratio lives on the button, not the img: if the poster fails to load its
+     onerror hides it, and without this the button would collapse to zero height and
+     take the play control with it. */
+  .vidcard .poster{position:relative;display:block;width:100%;border:0;padding:0;cursor:pointer;
+    background:#0b1615;aspect-ratio:16/9}
+  .vidcard .poster img{width:100%;height:100%;display:block;object-fit:cover}
+  .vidcard .poster .pbtn{
+    position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:34px;
+    text-shadow:0 2px 10px rgba(0,0,0,.6);background:rgba(6,20,19,.22);
+  }
+  .vidcard .bar{display:flex;align-items:center;gap:9px;padding:9px 11px;background:var(--card)}
+  .vidcard .plat{font-size:11.5px;font-weight:750;padding:3px 8px;border-radius:6px;background:var(--track);color:var(--muted);flex:none}
+  .vidcard .who{font-size:12px;color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .vidcard .bar a{font-size:12.5px;font-weight:700;text-decoration:none;flex:none}
+  .vidcard .note2{padding:0 11px 10px;font-size:11.5px;color:var(--muted);background:var(--card)}
   .upbar{height:6px;background:var(--track);border-radius:99px;overflow:hidden;margin-top:10px;display:none}
   .upbar.show{display:block}
   .upbar > i{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .2s linear}
@@ -420,7 +449,8 @@
       </div>
       <div class="field full hidden" id="videoField">
         <label for="taskVideo">Video link</label>
-        <input type="url" id="taskVideo" placeholder="https://youtube.com/watch?v=…" />
+        <input type="url" id="taskVideo" placeholder="Paste a Reel, YouTube or Drive link…" />
+        <div id="vidPrev"></div>
       </div>
       <div class="field full">
         <label for="taskDesc">Notes — optional</label>
@@ -532,7 +562,7 @@
    "roomList","roomShowMore","addItemBtn","roomRename","roomDelete","filters","cols",
    "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","authState","signOutBtn","authNote","saveSettings","cancelSettings",
    "taskBack","taskTitle","taskSubtitle","taskRoom","taskNewRoom","taskTitleInput","taskSegs","taskDesc","taskVideo",
-   "videoField","toggleVideoBtn","optBox","optSub","prevWrap","photoPrevImg","prevLabel","pickGalleryBtn","pickCameraBtn",
+   "videoField","vidPrev","toggleVideoBtn","optBox","optSub","prevWrap","photoPrevImg","prevLabel","pickGalleryBtn","pickCameraBtn",
    "removePhotoBtn","fileGallery","fileCamera","upBar","upBarFill","taskErr","taskSave","taskCancel","taskDelete","taskDeleteRow",
    "confirmBack","confirmMsg","confirmYes","confirmNo",
    "newRoomBack","newRoomName","newRoomErr","newRoomCreate","newRoomCancel",
@@ -577,6 +607,37 @@
     return m?m[1]:"";
   }
   function safeUrl(u){u=trimStr(u);return /^https?:\/\//i.test(u)?u:"";}
+  function hostOf(u){ try{ return new URL(u).hostname.replace(/^www\./,""); }catch(e){ return "link"; } }
+
+  /* --------- video links ---------
+     Some platforms hand out a still image you can hot-link, some don't. YouTube and Drive
+     do, so they get a cheap <img> thumbnail. Instagram does not: its oEmbed has required a
+     Facebook app token since 2020, so there is no way to fetch a Reel's poster frame from a
+     static page. What Instagram does offer is /embed, which renders the post in an iframe
+     for public accounts — so that is the preview for Reels. It costs a third-party frame
+     and only works while the post stays public, hence the "Open" link always sits beside
+     it as the fallback. */
+  function videoInfo(url){
+    var u=safeUrl(url); if(!u) return null;
+    var m;
+    var yt=youtubeId(u);
+    if(yt) return {kind:"youtube", label:"YouTube", url:u,
+      thumb:"https://img.youtube.com/vi/"+yt+"/mqdefault.jpg",
+      embed:"https://www.youtube-nocookie.com/embed/"+yt, ratio:"16/9"};
+    if((m=u.match(/instagram\.com\/(reels?|p|tv)\/([A-Za-z0-9_\-]+)/i))){
+      var seg=(/^reels?$/i.test(m[1]))?"reel":m[1].toLowerCase();
+      return {kind:"instagram", label:"Instagram", url:u, thumb:"",
+        embed:"https://www.instagram.com/"+seg+"/"+m[2]+"/embed", ratio:"9/16"};
+    }
+    if((m=u.match(/drive\.google\.com\/file\/d\/([A-Za-z0-9_\-]{10,})/))) return {kind:"drive", label:"Drive", url:u,
+      thumb:"https://drive.google.com/thumbnail?id="+m[1]+"&sz=w400",
+      embed:"https://drive.google.com/file/d/"+m[1]+"/preview", ratio:"16/9"};
+    if((m=u.match(/vimeo\.com\/(?:video\/)?(\d+)/))) return {kind:"vimeo", label:"Vimeo", url:u, thumb:"",
+      embed:"https://player.vimeo.com/video/"+m[1], ratio:"16/9"};
+    if((m=u.match(/(?:tiktok\.com\/@[^\/]+\/video\/|vm\.tiktok\.com\/)(\d+)/))) return {kind:"tiktok", label:"TikTok", url:u,
+      thumb:"", embed:"https://www.tiktok.com/embed/v2/"+m[1], ratio:"9/16"};
+    return {kind:"link", label:hostOf(u), url:u, thumb:"", embed:"", ratio:"16/9"};
+  }
 
   function banner(msg,kind,actLabel,actFn){
     if(!msg){els.banner.className="status";els.bannerText.textContent="";els.bannerAct.classList.add("hidden");return;}
@@ -643,12 +704,14 @@
   function roomTasks(room){return allTasks().filter(function(t){return t.room===room;});}
 
   function medHTML(t,cls){
-    var img=safeUrl(t.image), vid=safeUrl(t.video), yt=youtubeId(vid);
+    var img=safeUrl(t.image), v=videoInfo(t.video);
     if(img) return '<button class="'+cls+'" data-open="'+esc(img)+'" title="Open photo" aria-label="Open photo">'
       +'<img src="'+esc(imgSrc(img))+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" />'
-      +(vid?'<span class="play">▶</span>':'')+'</button>';
-    if(vid) return '<button class="'+cls+' vidonly" data-open="'+esc(vid)+'" title="Watch" aria-label="Watch">'
-      +(yt?'<img src="https://img.youtube.com/vi/'+esc(yt)+'/mqdefault.jpg" alt="" loading="lazy" onerror="this.style.display=\'none\'" /><span class="play">▶</span>':'▶')+'</button>';
+      +(v?'<span class="play">▶</span>':'')+'</button>';
+    if(v) return '<button class="'+cls+' vidonly plat-'+esc(v.kind)+'" data-open="'+esc(v.url)+'" '
+      +'title="Watch on '+esc(v.label)+'" aria-label="Watch on '+esc(v.label)+'">'
+      +(v.thumb?'<img src="'+esc(v.thumb)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" />':'')
+      +'<span class="play">▶</span></button>';
     return "";
   }
 
@@ -1337,6 +1400,7 @@
     setSegs(task?task.status:"To Do");
     els.taskVideo.value=task?(task.video||""):"";
     els.videoField.classList.toggle("hidden",!(task&&task.video));
+    renderVidPrev(false);
     setPhoto(task?task.image:"");
     els.taskErr.textContent="";
     els.taskDeleteRow.classList.toggle("hidden",!task);
@@ -1347,6 +1411,7 @@
   function closeTaskModal(){
     els.taskBack.classList.remove("open"); state.editing=null; taskImage=""; setUploading(false);
     els.fileGallery.value=""; els.fileCamera.value="";
+    els.vidPrev.innerHTML="";   // stop the iframe, don't leave it loading behind the modal
   }
   els.taskCancel.addEventListener("click",closeTaskModal);
   els.taskBack.addEventListener("click",function(e){ if(e.target===els.taskBack&&!uploading)closeTaskModal(); });
@@ -1373,6 +1438,44 @@
       var o=document.createElement("option"); o.value=name; o.textContent=name;
       els.taskRoom.insertBefore(o,s); els.taskRoom.value=name;
     });
+  });
+
+  /* Renders under the video field as soon as the URL is recognisable. Platforms that
+     hand out a still get a light <img> poster that swaps to the player on tap; the rest
+     embed directly. Unknown links still get a card, so the field never looks broken. */
+  function renderVidPrev(play){
+    var v=videoInfo(els.taskVideo.value);
+    if(!v){ els.vidPrev.innerHTML=""; return; }
+    var body;
+    if(v.thumb && !play){
+      body='<button type="button" class="poster" data-play="1" aria-label="Play preview">'
+        +'<img src="'+esc(v.thumb)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" />'
+        +'<span class="pbtn">▶</span></button>';
+    } else if(v.embed){
+      body='<div class="frame '+(v.ratio==="9/16"?"r916":"r169")+'">'
+        +'<iframe src="'+esc(v.embed)+'" loading="lazy" allowfullscreen '
+        +'referrerpolicy="strict-origin-when-cross-origin" '
+        +'allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture" '
+        +'title="Video preview"></iframe></div>';
+    } else {
+      body="";
+    }
+    els.vidPrev.innerHTML='<div class="vidcard">'+body
+      +'<div class="bar"><span class="plat">'+esc(v.label)+'</span>'
+      +'<span class="who">'+esc(hostOf(v.url))+'</span>'
+      +'<a href="'+esc(v.url)+'" target="_blank" rel="noopener">Open ↗</a></div>'
+      +(v.kind==="instagram"
+          ? '<div class="note2">Instagram only embeds public posts — if it stays blank, use Open.</div>'
+          : (v.kind==="link" ? '<div class="note2">Not a platform we can preview — the link still opens.</div>' : ""))
+      +'</div>';
+  }
+  var vidDebounce=null;
+  els.taskVideo.addEventListener("input",function(){
+    if(vidDebounce)clearTimeout(vidDebounce);
+    vidDebounce=setTimeout(function(){ renderVidPrev(false); },350);
+  });
+  els.vidPrev.addEventListener("click",function(e){
+    if(e.target.closest("[data-play]")) renderVidPrev(true);
   });
 
   function setUploading(on,frac){
