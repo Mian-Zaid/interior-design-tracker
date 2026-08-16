@@ -6,6 +6,12 @@
 <meta name="theme-color" content="#0d9488" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#080f0f" media="(prefers-color-scheme: dark)" />
 <title>Interior Tracker</title>
+<script>
+  /* Runs before first paint: applying the saved theme later would flash the wrong one. */
+  (function(){ try{ var t=localStorage.getItem("it_theme");
+    if(t==="light"||t==="dark") document.documentElement.setAttribute("data-theme",t);
+  }catch(e){} })();
+</script>
 <!-- Google Identity Services (OAuth token client) + GAPI (Sheets API). Drive is called
      with plain fetch/XHR so we get real upload progress. No backend anywhere. -->
 <script src="https://apis.google.com/js/api.js" async defer></script>
@@ -24,8 +30,11 @@
     --todo-bg:#e9eeed; --prog-bg:#fdf1dc; --done-bg:#ccfbf1;
     --col-todo:#eef2f2; --col-prog:#fdf6ea; --col-done:#e6f7f4;
   }
+  /* Three states, not two. No stamp on <html> means "follow the system", which is the
+     default; an explicit choice stamps data-theme and has to beat the media query in
+     BOTH directions — hence the :not() guard below and the standalone rule after it. */
   @media (prefers-color-scheme: dark){
-    :root{
+    :root:not([data-theme="light"]){
       --accent:#2dd4bf; --accent2:#14b8a6; --accent-050:#0c2a27; --accent-fg:#04201c;
       --bg:#080f0f; --card:#111b1a; --sunk:#0d1817;
       --text:#e6f0ee; --muted:#8ea5a1; --line:#1d2b29; --track:#1a2726;
@@ -35,6 +44,16 @@
       --todo-bg:#1a2625; --prog-bg:#2b1f0a; --done-bg:#0c2a27;
       --col-todo:#0e1716; --col-prog:#1a1509; --col-done:#0a1f1d;
     }
+  }
+  :root[data-theme="dark"]{
+      --accent:#2dd4bf; --accent2:#14b8a6; --accent-050:#0c2a27; --accent-fg:#04201c;
+      --bg:#080f0f; --card:#111b1a; --sunk:#0d1817;
+      --text:#e6f0ee; --muted:#8ea5a1; --line:#1d2b29; --track:#1a2726;
+      --shadow:0 1px 2px rgba(0,0,0,.45), 0 10px 30px rgba(0,0,0,.5);
+      --danger:#f87171;
+      --todo:#7b908d; --prog:#f59e0b; --done:#2dd4bf;
+      --todo-bg:#1a2625; --prog-bg:#2b1f0a; --done-bg:#0c2a27;
+      --col-todo:#0e1716; --col-prog:#1a1509; --col-done:#0a1f1d;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -55,6 +74,15 @@
     cursor:pointer;box-shadow:var(--shadow);display:inline-flex;align-items:center;justify-content:center;gap:6px;
   }
   .icon-btn.square{width:42px;padding:0;font-size:18px}
+  /* The button shows the theme you'd switch to, so the sun appears while dark. */
+  #themeBtn .ico-sun{display:none}
+  #themeBtn .ico-moon{display:block}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) #themeBtn .ico-sun{display:block}
+    :root:not([data-theme="light"]) #themeBtn .ico-moon{display:none}
+  }
+  :root[data-theme="dark"] #themeBtn .ico-sun{display:block}
+  :root[data-theme="dark"] #themeBtn .ico-moon{display:none}
   a.icon-btn{text-decoration:none}
   .icon-btn:active{transform:scale(.94)}
   .icon-btn.accent{background:var(--accent);color:var(--accent-fg);border-color:transparent}
@@ -307,6 +335,17 @@
       <div class="sub" id="syncSub">Not connected</div>
     </div>
     <div class="hbtns">
+      <button class="icon-btn square" id="themeBtn" type="button" title="Switch theme" aria-label="Switch theme">
+        <svg class="ico-sun" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2" fill="currentColor"/>
+          <g stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+            <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/>
+          </g>
+        </svg>
+        <svg class="ico-moon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+          <path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1z" fill="currentColor"/>
+        </svg>
+      </button>
       <button class="icon-btn accent hidden" id="authBtn">Sign in</button>
       <a class="icon-btn square hidden" id="sheetLink" href="#" target="_blank" rel="noopener" title="Open Google Sheet" aria-label="Open Google Sheet">🔗</a>
       <button class="icon-btn square" id="settingsBtn" title="Settings" aria-label="Settings">⚙︎</button>
@@ -373,6 +412,16 @@
       <input type="text" id="sheetInput" placeholder="https://docs.google.com/spreadsheets/d/…/edit" />
       <div class="hintx">Paste the full sheet URL or just the ID. You need edit access.</div>
     </div>
+    <div class="field" style="margin-top:14px">
+      <label>Appearance</label>
+      <div class="segs" id="themeSegs">
+        <button class="seg" type="button" data-theme-set="">System</button>
+        <button class="seg" type="button" data-theme-set="light">Light</button>
+        <button class="seg" type="button" data-theme-set="dark">Dark</button>
+      </div>
+      <div class="hintx">“System” follows your phone's light/dark setting.</div>
+    </div>
+
     <div class="field" style="margin-top:14px">
       <label for="tabInput">Tab name</label>
       <input type="text" id="tabInput" placeholder="Interior" />
@@ -532,7 +581,7 @@
 (function(){
   "use strict";
 
-  var LS_CLIENT="it_client_id", LS_SHEET="it_sheet_id", LS_TAB="it_tab", LS_TOKEN="it_token";
+  var LS_CLIENT="it_client_id", LS_SHEET="it_sheet_id", LS_TAB="it_tab", LS_TOKEN="it_token", LS_THEME="it_theme";
   var RENEW_BEFORE_MS=5*60*1000;   // start renewing this long before expiry
   var EXPIRY_MARGIN_S=120;         // treat the token as dead this early, to beat clock skew
   var POLL_MS=20000;
@@ -557,7 +606,7 @@
 
   var $=function(id){return document.getElementById(id);};
   var els={};
-  ["wrap","headTitle","headLeft","syncSub","authBtn","sheetLink","settingsBtn","banner","bannerText","bannerAct",
+  ["wrap","headTitle","headLeft","syncSub","themeBtn","themeSegs","authBtn","sheetLink","settingsBtn","banner","bannerText","bannerAct",
    "viewHome","viewRoom","viewBoard","heroBtn","overallPct","overallMeta","overallBar","rooms","newRoomBtn",
    "roomList","roomShowMore","addItemBtn","roomRename","roomDelete","filters","cols",
    "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","authState","signOutBtn","authNote","saveSettings","cancelSettings",
@@ -638,6 +687,53 @@
       thumb:"", embed:"https://www.tiktok.com/embed/v2/"+m[1], ratio:"9/16"};
     return {kind:"link", label:hostOf(u), url:u, thumb:"", embed:"", ratio:"16/9"};
   }
+
+  /* ---------------- theme ----------------
+     "" = follow the system (default), "light"/"dark" = an explicit choice. The <head>
+     script already applied any saved value before first paint; this keeps the attribute,
+     the storage, the settings control and the browser chrome colour in step. */
+  function savedTheme(){
+    try{ var t=localStorage.getItem(LS_THEME); return (t==="light"||t==="dark")?t:""; }catch(e){ return ""; }
+  }
+  function systemDark(){
+    return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }
+  function effectiveTheme(){ var t=savedTheme(); return t||(systemDark()?"dark":"light"); }
+  function applyTheme(t){
+    if(t==="light"||t==="dark") document.documentElement.setAttribute("data-theme",t);
+    else document.documentElement.removeAttribute("data-theme");
+    try{ if(t) localStorage.setItem(LS_THEME,t); else localStorage.removeItem(LS_THEME); }catch(e){}
+    // Keep the mobile browser chrome in step; the static <meta media=…> pair only
+    // covers the follow-the-system case.
+    var dark=(t||(systemDark()?"dark":"light"))==="dark";
+    var m=document.querySelector('meta[name="theme-color"]:not([media])');
+    if(!m){ m=document.createElement("meta"); m.setAttribute("name","theme-color"); document.head.appendChild(m); }
+    m.setAttribute("content", dark?"#080f0f":"#0d9488");
+    syncThemeSegs();
+  }
+  function syncThemeSegs(){
+    var cur=savedTheme();
+    Array.prototype.forEach.call(els.themeSegs.querySelectorAll(".seg"),function(b){
+      var on=b.getAttribute("data-theme-set")===cur;
+      b.className="seg"+(on?" on-done":"");
+      b.setAttribute("aria-pressed",on?"true":"false");
+    });
+  }
+  els.themeBtn.addEventListener("click",function(){
+    // Straight flip against what's on screen right now, whatever the source.
+    applyTheme(effectiveTheme()==="dark"?"light":"dark");
+  });
+  els.themeSegs.addEventListener("click",function(e){
+    var b=e.target.closest(".seg"); if(b) applyTheme(b.getAttribute("data-theme-set"));
+  });
+  // While following the system, track OS changes live.
+  if(window.matchMedia){
+    var mq=window.matchMedia("(prefers-color-scheme: dark)");
+    var onMq=function(){ if(!savedTheme()) applyTheme(""); };
+    if(mq.addEventListener) mq.addEventListener("change",onMq);
+    else if(mq.addListener) mq.addListener(onMq);
+  }
+  applyTheme(savedTheme());
 
   function banner(msg,kind,actLabel,actFn){
     if(!msg){els.banner.className="status";els.bannerText.textContent="";els.bannerAct.classList.add("hidden");return;}

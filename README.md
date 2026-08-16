@@ -6,7 +6,8 @@ No server, no Apps Script, no build step. It's one self-contained `index.html`.
 
 > First time here? Open the app, tap **⚙︎**, and follow the [Setup](#setup) section.
 
-- 📱 Mobile-first, light **and** dark (follows your system)
+- 📱 Mobile-first, light **and** dark — follows your system, or tap ☀/🌙 in the header to
+  override it (System / Light / Dark also lives in ⚙ settings)
 - 🏠 **Rooms** hold **items**; each item is a checklist row with a status circle
 - ⭕ Tap the circle to cycle **To Do → In Progress → Done**. One tap, no dialog, no photo needed
 - 🗂️ **Board view** — every item across every room in three columns, filter by room,
@@ -216,6 +217,19 @@ consequences worth knowing:
   not, the link still works fine without opening the item.
 
 Nothing ever autoplays.
+
+---
+
+## Light & dark
+
+The app follows your phone's light/dark setting out of the box. Tap the **sun / moon button**
+in the header to override it — the icon shows what you'll switch *to*. Your choice is
+remembered on that device and applied before the page paints, so there's no white flash on a
+dark phone.
+
+⚙ Settings has the full control: **System / Light / Dark**. Picking **System** clears the
+override and goes back to following the phone, including live if you change it while the app
+is open.
 
 ---
 

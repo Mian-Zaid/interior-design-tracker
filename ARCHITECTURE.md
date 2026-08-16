@@ -200,6 +200,40 @@ is a hidden gesture with no affordance and it is fiddly one-handed — the exact
 for a non-technical user. Plain ‹ › buttons on each card do the same job, work with a
 keyboard and a screen reader, and cost a few lines.
 
+## Theming: three states, not two
+
+A light/dark switch looks trivial and has one non-obvious trap: there are **three** states,
+not two — light, dark, and *follow the system*, which is the default and must stay
+recoverable. Model it as an attribute on `<html>` that is simply absent while following the
+system:
+
+```css
+:root{ /* light tokens */ }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ /* dark tokens */ }
+}
+:root[data-theme="dark"]{ /* dark tokens again */ }
+```
+
+The `:not()` guard is what lets an explicit *light* choice beat a dark OS; the standalone
+rule is what lets an explicit *dark* choice beat a light OS. Drop either and the override
+only works in one direction.
+
+Three more things that separate a working toggle from a good one:
+
+- **Apply the saved theme in `<head>`, before first paint.** Doing it from the main script
+  at the end of `<body>` gives a dark-mode user a white flash on every load. A three-line
+  inline script that reads storage and stamps the attribute costs nothing.
+- **Keep `<meta name="theme-color">` in step.** The static `media=` pair only covers the
+  follow-the-system case; an explicit override needs a single unmediated tag updated in JS,
+  or the mobile browser chrome contradicts the page.
+- **Listen for OS changes while unset.** If the user is following the system and flips it
+  mid-session, `matchMedia(...).addEventListener("change", …)` keeps you in sync. Ignore the
+  event once an explicit choice exists.
+
+Treat an unrecognised stored value as "follow the system" rather than trusting it into the
+attribute — it degrades to the sane default instead of a broken stamp.
+
 ## Previewing third-party media without an API key
 
 Not every platform lets a static page show a preview, and the differences decide the UI:
