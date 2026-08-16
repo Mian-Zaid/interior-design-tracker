@@ -168,6 +168,12 @@
     border:none;padding:0;cursor:pointer;display:block;text-decoration:none}
   .med img{width:100%;height:100%;object-fit:cover;display:block}
   .med .play{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:15px;background:rgba(6,20,19,.4)}
+  /* "how many photos" badge — sits above the play scrim so both can show at once */
+  .med .cnt,.kmed .cnt{
+    position:absolute;right:2px;bottom:2px;z-index:1;min-width:15px;height:15px;padding:0 4px;
+    border-radius:8px;background:rgba(4,14,13,.8);color:#fff;font-size:10px;font-weight:800;
+    line-height:15px;text-align:center;letter-spacing:-.02em;
+  }
   .med.vidonly{background:#16302e;color:#fff;font-size:17px}
   .vidonly.plat-instagram{background:linear-gradient(135deg,#f9ce34,#ee2a7b 45%,#6228d7)}
   .vidonly.plat-youtube{background:#8b1a17}
@@ -278,8 +284,33 @@
   .minibtn:active{transform:scale(.96)}
   .minibtn.danger{color:var(--danger);border-color:rgba(220,38,38,.4)}
   .minibtn:disabled{opacity:.5;cursor:not-allowed}
-  .prevwrap{display:flex;gap:11px;align-items:center;margin-bottom:11px}
-  .prevwrap img{width:74px;height:74px;object-fit:cover;border-radius:12px;border:1px solid var(--line);flex:none}
+  .prevwrap{margin-bottom:11px}
+  /* photo strip — scrolls sideways rather than wrapping, so the picker buttons stay put
+     no matter how many photos an item collects */
+  .shots{display:flex;gap:9px;overflow-x:auto;padding:2px;-webkit-overflow-scrolling:touch}
+  .shot{position:relative;flex:none;width:74px}
+  .shot .sv{
+    display:block;width:74px;height:74px;padding:0;border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;background:var(--sunk);cursor:zoom-in;
+  }
+  .shot .sv img{width:100%;height:100%;object-fit:cover;display:block}
+  /* The controls sit INSIDE the tile. Hanging them over the edge put each tile's ✕ right
+     next to the next tile's ★, so neither read as belonging to anything in particular. */
+  .shot .sx,.shot .sc{
+    position:absolute;top:4px;width:21px;height:21px;border-radius:50%;padding:0;cursor:pointer;
+    border:none;background:rgba(4,14,13,.66);font-size:11px;line-height:1;color:#fff;
+    display:grid;place-items:center;backdrop-filter:blur(2px);
+  }
+  .shot .sx{right:4px}
+  .shot .sc{left:4px;font-size:10px}
+  .shot .sx:active,.shot .sc:active{transform:scale(.88)}
+  .shot .sv:focus-visible,.shot .sx:focus-visible,.shot .sc:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .shot .scov{
+    display:block;min-height:13px;text-align:center;font-size:9.5px;font-weight:800;color:var(--muted);
+    margin-top:3px;text-transform:uppercase;letter-spacing:.05em;
+  }
+  .shot.up .sv{opacity:.45}
+  .shot.up .sv img{filter:grayscale(.4)}
   /* video preview */
   .vidcard{margin-top:10px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--sunk)}
   .vidcard .frame{position:relative;width:100%;background:#0b1615;display:block}
@@ -310,9 +341,25 @@
   /* full-size photo viewer */
   .lb{position:fixed;inset:0;z-index:80;display:none;flex-direction:column;background:rgba(4,14,13,.94)}
   .lb.open{display:flex}
-  .lb-stage{flex:1;min-height:0;display:grid;place-items:center;padding:52px 12px 8px}
+  .lb-stage{flex:1;min-height:0;display:grid;place-items:center;padding:52px 12px 8px;position:relative;touch-action:pan-y}
   .lb-stage img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;display:block}
   .lb-fail{color:#e6f0ee;font-size:14px;opacity:.8}
+  /* gallery nav — thumb-reachable, and only rendered when there's more than one photo */
+  .lb-nav{
+    position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border-radius:12px;
+    border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.42);color:#fff;font-size:26px;
+    cursor:pointer;display:grid;place-items:center;padding:0;line-height:1;
+  }
+  .lb-nav.prev{left:8px} .lb-nav.next{right:8px}
+  .lb-nav:disabled{opacity:.3;cursor:default}
+  .lb-nav:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .lb-dots{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:4px 16px 0}
+  .lb-dots > button{
+    width:7px;height:7px;padding:0;border-radius:50%;border:none;cursor:pointer;
+    background:rgba(255,255,255,.32);
+  }
+  .lb-dots > button.on{background:#7fe6d5;transform:scale(1.35)}
+  .lb-n{color:#cfe3e0;font-size:12px;font-weight:700;flex:none;opacity:.85}
   .lb-close{
     position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:1;
     width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.25);
@@ -515,24 +562,21 @@
       <div class="field full">
         <label>Inspiration — optional</label>
         <div class="prevwrap hidden" id="prevWrap">
-          <img id="photoPrevImg" alt="" role="button" tabindex="0" title="View full size" style="cursor:zoom-in" />
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:700" id="prevLabel">Photo attached</div>
-            <div class="hintx" style="margin-top:2px">Stored in your Drive, shared by link.</div>
-          </div>
+          <div class="shots" id="shotStrip"></div>
+          <div class="hintx" id="prevLabel">Stored in your Drive, shared by link.</div>
         </div>
         <div class="optbox" id="optBox">
           <div class="ot">Got a picture or a video?</div>
           <div class="os" id="optSub">Add it now, or any time later. Nothing is required.</div>
           <div class="obtns">
-            <button type="button" class="minibtn" id="pickGalleryBtn">🖼 Photo</button>
+            <button type="button" class="minibtn" id="pickGalleryBtn">🖼 Photos</button>
             <button type="button" class="minibtn" id="pickCameraBtn">📷 Camera</button>
             <button type="button" class="minibtn" id="toggleVideoBtn">🔗 Video link</button>
-            <button type="button" class="minibtn danger hidden" id="removePhotoBtn">Remove photo</button>
+            <button type="button" class="minibtn danger hidden" id="removePhotoBtn">Remove all</button>
           </div>
           <div class="upbar" id="upBar"><i id="upBarFill"></i></div>
         </div>
-        <input type="file" id="fileGallery" accept="image/*" class="hidden" />
+        <input type="file" id="fileGallery" accept="image/*" multiple class="hidden" />
         <input type="file" id="fileCamera" accept="image/*" capture="environment" class="hidden" />
       </div>
       <div class="field full hidden" id="videoField">
@@ -562,9 +606,13 @@
   <div class="lb-stage" id="lbStage">
     <img id="lbImg" alt="" />
     <div class="lb-fail hidden" id="lbFail">Couldn't load this photo.</div>
+    <button class="lb-nav prev hidden" id="lbPrevBtn" type="button" aria-label="Previous photo">‹</button>
+    <button class="lb-nav next hidden" id="lbNextBtn" type="button" aria-label="Next photo">›</button>
   </div>
+  <div class="lb-dots hidden" id="lbDots"></div>
   <div class="lb-bar">
     <span class="lb-cap" id="lbCap"></span>
+    <span class="lb-n hidden" id="lbCount"></span>
     <a id="lbOpen" href="#" target="_blank" rel="noopener">Open original ↗</a>
   </div>
 </div>
@@ -675,9 +723,10 @@
    "roomList","roomShowMore","addItemBtn","roomRename","roomDelete","filters","cols",
    "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","sheetLinkWrap","authState","signOutBtn","authNote","shareWrap","shareLink","copyShareBtn","shareNote","saveSettings","cancelSettings",
    "taskBack","taskTitle","taskSubtitle","taskRoom","taskNewRoom","taskTitleInput","taskSegs","taskDesc","taskVideo",
-   "videoField","vidPrev","toggleVideoBtn","optBox","optSub","prevWrap","photoPrevImg","prevLabel","pickGalleryBtn","pickCameraBtn",
+   "videoField","vidPrev","toggleVideoBtn","optBox","optSub","prevWrap","shotStrip","prevLabel","pickGalleryBtn","pickCameraBtn",
    "removePhotoBtn","fileGallery","fileCamera","upBar","upBarFill","taskErr","taskSave","taskCancel","taskDelete","taskDeleteRow",
-   "lightbox","lbClose","lbImg","lbCap","lbOpen","lbFail","confirmBack","confirmMsg","confirmYes","confirmNo",
+   "lightbox","lbClose","lbImg","lbCap","lbOpen","lbFail","lbStage","lbPrevBtn","lbNextBtn","lbDots","lbCount",
+   "confirmBack","confirmMsg","confirmYes","confirmNo",
    "newRoomBack","newRoomName","newRoomFloor","floorList","floorChips","newRoomErr","newRoomCreate","newRoomCancel",
    "renameBack","renameName","renameFloor","renameErr","renameSave","renameCancel",
    "delRoomBack","delRoomMsg","delRoomMoveWrap","delRoomTarget","delRoomErr","delRoomActions"
@@ -725,6 +774,19 @@
     return m?m[1]:"";
   }
   function safeUrl(u){u=trimStr(u);return /^https?:\/\//i.test(u)?u:"";}
+  /* An item can carry several photos. They live in the one Image URL cell, whitespace
+     separated — a URL can't contain a space, so splitting is unambiguous, and a sheet that
+     only ever held a single URL parses as a list of one. No new column, no migration. */
+  function imgList(s){
+    var out=[];
+    trimStr(s).split(/\s+/).forEach(function(u){
+      u=safeUrl(u); if(u && out.indexOf(u)===-1) out.push(u);
+    });
+    return out;
+  }
+  // Newlines rather than spaces so a cell with several photos stays readable in Sheets.
+  function imgJoin(list){ return (list||[]).join("\n"); }
+  function firstImg(s){ return imgList(s)[0]||""; }
   function hostOf(u){ try{ return new URL(u).hostname.replace(/^www\./,""); }catch(e){ return "link"; } }
 
   /* --------- video links ---------
@@ -874,13 +936,17 @@
   function roomTasks(room){return allTasks().filter(function(t){return t.room===room;});}
 
   function medHTML(t,cls){
-    var img=safeUrl(t.image), v=videoInfo(t.video);
+    var imgs=imgList(t.image), img=imgs[0]||"", v=videoInfo(t.video);
     // Photo → in-app viewer. Video → a real <a>, never window.open: a genuine top-level
     // navigation is what lets iOS Universal Links / Android App Links hand off to the
     // installed app. window.open lands in a browser tab instead.
-    if(img) return '<button class="'+cls+'" data-img="'+esc(img)+'" data-cap="'+esc(t.title||"")+'" '
-      +'title="View photo" aria-label="View photo">'
+    // data-img keeps the cover for anything that only wants one; data-imgs carries the
+    // whole set so the viewer opens as a gallery.
+    if(img) return '<button class="'+cls+'" data-img="'+esc(img)+'" data-imgs="'+esc(imgs.join(" "))+'" '
+      +'data-cap="'+esc(t.title||"")+'" title="View photo'+(imgs.length>1?"s":"")+'" '
+      +'aria-label="View '+(imgs.length>1?(imgs.length+" photos"):"photo")+'">'
       +'<img src="'+esc(imgSrc(img))+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" />'
+      +(imgs.length>1?'<span class="cnt">'+imgs.length+'</span>':'')
       +(v?'<span class="play">▶</span>':'')+'</button>';
     if(v) return '<a class="'+cls+' vidonly plat-'+esc(v.kind)+'" href="'+esc(v.url)+'" '
       +'target="_blank" rel="noopener" title="Open in '+esc(v.label)+'" aria-label="Open in '+esc(v.label)+'">'
@@ -900,11 +966,11 @@
       : "No items yet &nbsp;·&nbsp; <b>Board ›</b>";
   }
 
-  // Room cover = the most recently updated item in that room that has a photo.
+  // Room cover = the first photo of the most recently updated item in that room that has one.
   function roomCover(room){
-    var withImg=roomTasks(room).filter(function(t){return safeUrl(t.image);});
+    var withImg=roomTasks(room).filter(function(t){return firstImg(t.image);});
     if(!withImg.length) return "";
-    return byRecent(withImg)[0].image;
+    return firstImg(byRecent(withImg)[0].image);
   }
   function floorOf(room){ return trimStr(state.floors[room]||""); }
   function floorList(){
@@ -1594,19 +1660,45 @@
   }
 
   /* ---------------- list / board interactions ---------------- */
-  var lbPrev=null;
-  function openLightbox(url,caption,srcOverride){
-    var u=safeUrl(url)||trimStr(srcOverride||"");
-    if(!u && !srcOverride) return;
-    lbPrev=document.activeElement;
+  var lbPrev=null, lbSet=[], lbIdx=0, lbCaption="", lbLocal="";
+  // Renders whichever photo lbIdx points at. lbLocal is the one case with no URL behind it:
+  // a file picked in the modal that is still uploading, previewed from its object URL.
+  function lbShow(){
+    var u=lbSet[lbIdx]||"", many=lbSet.length>1;
     els.lbFail.classList.add("hidden");
     els.lbImg.style.display="";
     els.lbImg.onerror=function(){ els.lbImg.style.display="none"; els.lbFail.classList.remove("hidden"); };
-    els.lbImg.src=srcOverride||imgLarge(u);
-    els.lbImg.alt=caption||"Photo";
-    els.lbCap.textContent=caption||"";
-    if(safeUrl(url)){ els.lbOpen.href=url; els.lbOpen.classList.remove("hidden"); }
+    els.lbImg.src=lbLocal||imgLarge(u);
+    els.lbImg.alt=lbCaption||"Photo";
+    els.lbCap.textContent=lbCaption||"";
+    if(u){ els.lbOpen.href=u; els.lbOpen.classList.remove("hidden"); }
     else els.lbOpen.classList.add("hidden");
+    els.lbCount.textContent=many?((lbIdx+1)+" / "+lbSet.length):"";
+    els.lbCount.classList.toggle("hidden",!many);
+    els.lbPrevBtn.classList.toggle("hidden",!many);
+    els.lbNextBtn.classList.toggle("hidden",!many);
+    els.lbDots.classList.toggle("hidden",!(many&&lbSet.length<=12));
+    if(many&&lbSet.length<=12){
+      els.lbDots.innerHTML=lbSet.map(function(_,i){
+        return '<button type="button" data-dot="'+i+'"'+(i===lbIdx?' class="on"':'')
+          +' aria-label="Photo '+(i+1)+'"></button>';
+      }).join('');
+    } else els.lbDots.innerHTML="";
+  }
+  function lbGo(step){
+    if(lbSet.length<2)return;
+    lbIdx=(lbIdx+step+lbSet.length)%lbSet.length;   // wraps, so a swipe never dead-ends
+    lbLocal=""; lbShow();
+  }
+  // Accepts a single URL, a whitespace-separated list, or an array. startAt picks which one
+  // opens first; srcOverride previews a local file that has no URL yet.
+  function openLightbox(urls,caption,srcOverride,startAt){
+    var list=Array.isArray(urls)?urls.map(safeUrl).filter(Boolean):imgList(urls);
+    if(!list.length && !srcOverride) return;
+    lbSet=list; lbIdx=Math.min(Math.max(startAt|0,0),Math.max(0,list.length-1));
+    lbCaption=caption||""; lbLocal=trimStr(srcOverride||"");
+    lbPrev=document.activeElement;
+    lbShow();
     els.lightbox.classList.add("open");
     document.body.style.overflow="hidden";
     els.lbClose.focus();
@@ -1614,15 +1706,41 @@
   function closeLightbox(){
     els.lightbox.classList.remove("open");
     els.lbImg.removeAttribute("src");   // stop a large download if it's still in flight
+    lbSet=[]; lbIdx=0; lbLocal="";
     document.body.style.overflow="";
     if(lbPrev&&lbPrev.focus){ lbPrev.focus(); lbPrev=null; }
   }
   els.lbClose.addEventListener("click",closeLightbox);
+  els.lbPrevBtn.addEventListener("click",function(e){ e.stopPropagation(); lbGo(-1); });
+  els.lbNextBtn.addEventListener("click",function(e){ e.stopPropagation(); lbGo(1); });
+  els.lbDots.addEventListener("click",function(e){
+    var d=e.target.closest("[data-dot]"); if(!d)return;
+    e.stopPropagation(); lbIdx=+d.getAttribute("data-dot"); lbLocal=""; lbShow();
+  });
+  var lbSwiped=false;
   els.lightbox.addEventListener("click",function(e){
-    // anywhere except the image itself or the bottom bar's link
-    if(e.target.closest("#lbImg")||e.target.closest(".lb-bar a"))return;
+    // A swipe ends in a click on whatever was under the finger. Without this, swiping
+    // anywhere but the image itself would close the viewer instead of paging it.
+    if(lbSwiped){ lbSwiped=false; return; }
+    // anywhere except the image itself, the gallery controls, or the bottom bar's link
+    if(e.target.closest("#lbImg")||e.target.closest(".lb-nav")
+      ||e.target.closest(".lb-dots")||e.target.closest(".lb-bar a"))return;
     closeLightbox();
   });
+  // Swipe. Pointer events, not touch events, so it also works with a trackpad drag.
+  var lbSw=null;
+  els.lbStage.addEventListener("pointerdown",function(e){
+    if(lbSet.length<2)return;
+    lbSw={x:e.clientX,y:e.clientY,id:e.pointerId};
+  });
+  els.lbStage.addEventListener("pointerup",function(e){
+    if(!lbSw||e.pointerId!==lbSw.id){ lbSw=null; return; }
+    var dx=e.clientX-lbSw.x, dy=e.clientY-lbSw.y; lbSw=null;
+    if(Math.abs(dx)<40||Math.abs(dx)<Math.abs(dy))return;   // vertical drag isn't a swipe
+    lbSwiped=true;
+    lbGo(dx<0?1:-1);
+  });
+  els.lbStage.addEventListener("pointercancel",function(){ lbSw=null; });
 
   els.rooms.addEventListener("click",function(e){
     var t=e.target.closest(".tile"); if(t) go("room",t.getAttribute("data-room"));
@@ -1641,7 +1759,7 @@
     var ad=e.target.closest("[data-add]");
     if(ad){ var t3=state.byId[ad.getAttribute("data-add")]; if(t3) openTaskModal(t3,null,true); return; }
     var im=e.target.closest("[data-img]");
-    if(im){ openLightbox(im.getAttribute("data-img"), im.getAttribute("data-cap")); return; }
+    if(im){ openLightbox(im.getAttribute("data-imgs")||im.getAttribute("data-img"), im.getAttribute("data-cap")); return; }
   });
   els.roomShowMore.addEventListener("click",function(){ state.doneLimit+=DONE_PAGE; renderRoomView(); });
   els.addItemBtn.addEventListener("click",function(){ openTaskModal(null,state.room); });
@@ -1664,7 +1782,7 @@
     var ed=e.target.closest("[data-edit]");
     if(ed){ var t2=state.byId[ed.getAttribute("data-edit")]; if(t2) openTaskModal(t2,null); return; }
     var im=e.target.closest("[data-img]");
-    if(im){ openLightbox(im.getAttribute("data-img"), im.getAttribute("data-cap")); return; }
+    if(im){ openLightbox(im.getAttribute("data-imgs")||im.getAttribute("data-img"), im.getAttribute("data-cap")); return; }
   });
 
   /* pointer drag on the board */
@@ -1715,7 +1833,8 @@
   els.cols.addEventListener("pointercancel",endDrag);
 
   /* ---------------- task modal ---------------- */
-  var taskImage="", taskStatus="To Do", uploading=false;
+  var taskImages=[], taskUp=[], taskStatus="To Do", uploading=false;
+  var MAX_PHOTOS=20;
 
   function fillRoomSelect(sel,selected){
     var rooms=state.rooms.slice();
@@ -1735,21 +1854,41 @@
   els.taskSegs.addEventListener("click",function(e){
     var b=e.target.closest(".seg"); if(b) setSegs(b.getAttribute("data-st"));
   });
-  function setPhoto(url){
-    taskImage=trimStr(url);
-    if(taskImage){
-      els.photoPrevImg.src=imgSrc(taskImage);
-      els.prevWrap.classList.remove("hidden");
-      els.removePhotoBtn.classList.remove("hidden");
-      els.pickGalleryBtn.textContent="🖼 Replace";
-      els.optSub.textContent="Replace it, add a video link, or leave it as is.";
-    } else {
-      els.photoPrevImg.removeAttribute("src");
-      els.prevWrap.classList.add("hidden");
-      els.removePhotoBtn.classList.add("hidden");
-      els.pickGalleryBtn.textContent="🖼 Photo";
-      els.optSub.textContent="Add it now, or any time later. Nothing is required.";
-    }
+  // taskImages holds saved Drive URLs; taskUp holds object URLs of files still uploading,
+  // so a picked photo shows immediately instead of after the round trip.
+  function renderShots(){
+    var n=taskImages.length, html="";
+    taskImages.forEach(function(u,i){
+      html+='<div class="shot" data-i="'+i+'">'
+        + '<button type="button" class="sv" data-view="'+i+'" title="View full size" '
+        +   'aria-label="View photo '+(i+1)+'"><img src="'+esc(imgSrc(u))+'" alt="" '
+        +   'onerror="this.style.display=\'none\'" /></button>'
+        + (i>0?'<button type="button" class="sc" data-cover="'+i+'" title="Make cover" '
+              +'aria-label="Make photo '+(i+1)+' the cover">★</button>':'')
+        + '<button type="button" class="sx" data-del="'+i+'" title="Remove" '
+        +   'aria-label="Remove photo '+(i+1)+'">✕</button>'
+        + '<span class="scov">'+(i===0&&n>1?"Cover":"")+'</span>'
+        + '</div>';
+    });
+    taskUp.forEach(function(u){
+      html+='<div class="shot up"><span class="sv"><img src="'+esc(u)+'" alt="" /></span>'
+        + '<span class="scov">…</span></div>';
+    });
+    els.shotStrip.innerHTML=html;
+    var any=n>0||taskUp.length>0;
+    els.prevWrap.classList.toggle("hidden",!any);
+    els.removePhotoBtn.classList.toggle("hidden",n<2);
+    els.pickGalleryBtn.textContent=any?"🖼 Add more":"🖼 Photos";
+    els.prevLabel.textContent=n>1
+      ? (n+" photos — the first is the cover. Stored in your Drive, shared by link.")
+      : "Stored in your Drive, shared by link.";
+    if(!uploading) els.optSub.textContent=any
+      ? "Add more, a video link, or leave it as is."
+      : "Add it now, or any time later. Nothing is required.";
+  }
+  function setPhotos(v){
+    taskImages=Array.isArray(v)?v.map(safeUrl).filter(Boolean):imgList(v);
+    renderShots();
   }
   function openTaskModal(task,presetRoom,focusMedia){
     if(needsAuth())return;
@@ -1764,7 +1903,7 @@
     els.taskVideo.value=task?(task.video||""):"";
     els.videoField.classList.toggle("hidden",!(task&&task.video));
     renderVidPrev(false);
-    setPhoto(task?task.image:"");
+    taskUp=[]; setPhotos(task?task.image:"");
     els.taskErr.textContent="";
     els.taskDeleteRow.classList.toggle("hidden",!task);
     setUploading(false);
@@ -1772,7 +1911,9 @@
     if(focusMedia) els.pickGalleryBtn.focus(); else els.taskTitleInput.focus();
   }
   function closeTaskModal(){
-    els.taskBack.classList.remove("open"); state.editing=null; taskImage=""; setUploading(false);
+    els.taskBack.classList.remove("open"); state.editing=null; setUploading(false);
+    taskUp.forEach(function(u){ URL.revokeObjectURL(u); });
+    taskImages=[]; taskUp=[]; els.shotStrip.innerHTML="";
     els.fileGallery.value=""; els.fileCamera.value="";
     els.vidPrev.innerHTML="";   // stop the iframe, don't leave it loading behind the modal
   }
@@ -1841,47 +1982,73 @@
     if(e.target.closest("[data-play]")) renderVidPrev(true);
   });
 
-  function setUploading(on,frac){
+  function setUploading(on,frac,which){
     uploading=!!on;
     els.pickGalleryBtn.disabled=on; els.pickCameraBtn.disabled=on;
     els.removePhotoBtn.disabled=on; els.taskSave.disabled=on; els.toggleVideoBtn.disabled=on;
-    if(on){ els.upBar.classList.add("show"); els.upBarFill.style.width=Math.round((frac||0)*100)+"%"; els.optSub.textContent="Uploading to your Drive…"; }
+    if(on){
+      els.upBar.classList.add("show");
+      els.upBarFill.style.width=Math.round((frac||0)*100)+"%";
+      els.optSub.textContent="Uploading to your Drive…"+(which||"");
+    }
     else { els.upBar.classList.remove("show"); els.upBarFill.style.width="0%"; }
   }
+  // Files upload one after another, not in parallel: a phone on mobile data does better
+  // with one request at a time, and the progress bar stays meaningful. Each finished photo
+  // is appended as it lands, so a failure half way through keeps the ones already up.
   function onFilePicked(input){
-    var file=input.files&&input.files[0];
+    var files=Array.prototype.slice.call(input.files||[]);
     input.value="";
-    if(!file)return;
+    if(!files.length)return;
     els.taskErr.textContent="";
-    var localUrl=URL.createObjectURL(file);
-    els.photoPrevImg.src=localUrl; els.prevWrap.classList.remove("hidden");
-    setUploading(true,0);
-    uploadPhoto(file,function(f){ setUploading(true,f); })
-      .then(function(url){ setUploading(false); URL.revokeObjectURL(localUrl); setPhoto(url); })
-      .catch(function(err){
-        setUploading(false); URL.revokeObjectURL(localUrl); setPhoto(taskImage);
-        els.taskErr.textContent=apiMsg(err,"Photo upload failed");
-        if(err&&err.status===401) requestToken(false).catch(function(){});
-      });
-  }
-  function viewTaskPhoto(){
-    if(!taskImage){
-      // a just-picked local file still mid-upload: preview what's on screen
-      var cur=els.photoPrevImg.getAttribute("src");
-      if(cur) openLightbox("", els.taskTitleInput.value||"Photo", cur);
-      return;
+    var room=MAX_PHOTOS-taskImages.length-taskUp.length, over=files.length-room;
+    if(room<=0){ els.taskErr.textContent="That's the limit of "+MAX_PHOTOS+" photos for one item."; return; }
+    if(over>0){
+      files=files.slice(0,room);
+      els.taskErr.textContent="Only the first "+room+" added — "+MAX_PHOTOS+" photos per item is the limit.";
     }
-    openLightbox(taskImage, els.taskTitleInput.value||"Photo");
+    var locals=files.map(function(f){ return URL.createObjectURL(f); });
+    taskUp=taskUp.concat(locals);
+    renderShots();
+    var total=files.length, i=0;
+    setUploading(true,0,total>1?(" 1 of "+total):"");
+    function drop(url){ var k=taskUp.indexOf(url); if(k!==-1) taskUp.splice(k,1); URL.revokeObjectURL(url); }
+    function next(){
+      if(i>=total){ setUploading(false); renderShots(); return; }
+      var f=files[i], local=locals[i];
+      setUploading(true,i/total,total>1?(" "+(i+1)+" of "+total):"");
+      uploadPhoto(f,function(frac){ setUploading(true,(i+frac)/total,total>1?(" "+(i+1)+" of "+total):""); })
+        .then(function(url){
+          drop(local);
+          if(taskImages.indexOf(url)===-1) taskImages.push(url);
+          i++; renderShots(); next();
+        })
+        .catch(function(err){
+          locals.slice(i).forEach(drop);   // abandon this one and the ones still queued
+          setUploading(false); renderShots();
+          els.taskErr.textContent=apiMsg(err,"Photo upload failed");
+          if(err&&err.status===401) requestToken(false).catch(function(){});
+        });
+    }
+    next();
   }
-  els.photoPrevImg.addEventListener("click",viewTaskPhoto);
-  els.photoPrevImg.addEventListener("keydown",function(e){
-    if(e.key==="Enter"||e.key===" "){ e.preventDefault(); viewTaskPhoto(); }
+  els.shotStrip.addEventListener("click",function(e){
+    var del=e.target.closest("[data-del]");
+    if(del){ taskImages.splice(+del.getAttribute("data-del"),1); renderShots(); return; }
+    var cov=e.target.closest("[data-cover]");
+    if(cov){
+      var j=+cov.getAttribute("data-cover");
+      taskImages.unshift(taskImages.splice(j,1)[0]);   // promote to first = cover
+      renderShots(); return;
+    }
+    var v=e.target.closest("[data-view]");
+    if(v) openLightbox(taskImages, els.taskTitleInput.value||"Photo", "", +v.getAttribute("data-view"));
   });
   els.pickGalleryBtn.addEventListener("click",function(){ els.fileGallery.click(); });
   els.pickCameraBtn.addEventListener("click",function(){ els.fileCamera.click(); });
   els.fileGallery.addEventListener("change",function(){ onFilePicked(els.fileGallery); });
   els.fileCamera.addEventListener("change",function(){ onFilePicked(els.fileCamera); });
-  els.removePhotoBtn.addEventListener("click",function(){ setPhoto(""); });
+  els.removePhotoBtn.addEventListener("click",function(){ setPhotos([]); });
 
   els.taskSave.addEventListener("click",function(){
     if(uploading)return;
@@ -1891,7 +2058,7 @@
     if(!title){ els.taskErr.textContent="Give the item a name."; return; }
     if(video && !/^https?:\/\//i.test(video)){ els.taskErr.textContent="Video link must start with http:// or https://"; return; }
     var stamp=nowStamp();
-    var vals={title:title,description:desc,status:taskStatus,image:taskImage,video:video,updated:stamp};
+    var vals={title:title,description:desc,status:taskStatus,image:imgJoin(taskImages),video:video,updated:stamp};
     var entry=state.editing;
     closeTaskModal(); banner("");
 
@@ -2132,6 +2299,9 @@
     if(state.signedIn && !busy()) refresh();
   });
   document.addEventListener("keydown",function(e){
+    if(els.lightbox.classList.contains("open")&&(e.key==="ArrowLeft"||e.key==="ArrowRight")){
+      e.preventDefault(); lbGo(e.key==="ArrowRight"?1:-1); return;
+    }
     if(e.key!=="Escape")return;
     if(els.lightbox.classList.contains("open")) closeLightbox();
     else if(els.confirmBack.classList.contains("open")) closeConfirm(false);

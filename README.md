@@ -16,8 +16,9 @@ No server, no Apps Script, no build step. It's one self-contained `index.html`.
   **drag** a card between columns or tap the **‹ ›** arrows
 - 📊 Auto progress: one number for the whole project, a thin bar per room
   (`done ÷ total`), never written to the sheet
-- 🖼️ **Optional** inspiration image and/or video link per item — add either, both, or neither,
-  now or any time later. Nothing ever requires media
+- 🖼️ **Optional** inspiration photos and/or a video link per item — add several photos at
+  once, or none at all, now or any time later. Nothing ever requires media
+- 🔍 Tap a photo for a **full-screen gallery** — swipe, arrow keys, or ‹ › to page through
 - 🕒 Sorted **most recently changed first**; finished items sink to the bottom, capped at 10
   with **Show 10 more**
 - ✎ Edit, 🗑 delete, 🔀 move items between rooms — destructive actions confirmed
@@ -67,6 +68,8 @@ tables laid out side by side**. Each table is one **room**:
 - The **header row** is `Title | Description | Status | Image URL | Video URL | Updated`.
 - Rows below are that room's items. Blank rows are fine — they're gaps left by deleted
   items, and the app keeps reading past them.
+- **`Image URL` can hold more than one link** — separate them with line breaks (or spaces).
+  The first is the item's cover.
 - Tables are separated by one or more blank columns and can each be a different length.
 
 Example (two rooms side by side, with a blank column between them):
@@ -202,15 +205,30 @@ button and Android's back gesture work as expected.
 
 Nothing in this app ever requires media. An item with no picture is a complete, normal item.
 
-Tap **🖼 Photo** or **📷 Camera** in the item popup, or the quiet **＋** on a checklist row.
+Tap **🖼 Photos** or **📷 Camera** in the item popup, or the quiet **＋** on a checklist row.
+The photo picker takes **several files at once**, and every item can hold up to **20**.
 
-1. The image is resized in the browser to **1600px on the long edge** and re-encoded as
+1. Each image is resized in the browser to **1600px on the long edge** and re-encoded as
    JPEG, so a 6 MB phone photo uploads as a few hundred KB over mobile data.
 2. It's uploaded to **your** Google Drive (`drive.file` scope, so the app can only ever see
    files it created itself).
 3. The app then marks the file **"anyone with the link can view"** and stores
    `https://drive.google.com/uc?id=FILE_ID` in the Image URL cell.
-4. The row shows a thumbnail; tapping it opens the full image in a new tab.
+4. The row shows a thumbnail with a small **count badge** when there's more than one.
+
+### Several photos on one item
+
+Pick as many as you like in one go — they upload **one after another**, each appearing in the
+strip as it lands, with one progress bar across the whole batch. If one fails, the ones
+already uploaded stay.
+
+In the strip, every photo has a **✕** to remove it and a **★** to make it the cover. The
+**first photo is the cover** — it's the one shown on the checklist row, the board card, and
+the room tile on the home page. Tap any thumbnail to view it full-screen.
+
+They all live in the item's **one `Image URL` cell**, separated by line breaks. No extra
+column, no migration: a cell holding a single URL is simply an item with one photo, and one
+you type by hand with URLs separated by spaces or newlines works too.
 
 > ⚠️ **Photos are shared by link.** Step 3 is what makes a photo load on your other devices
 > — without it the link only opens for whoever uploaded it. The trade-off is that **anyone
@@ -221,7 +239,8 @@ Tap **🖼 Photo** or **📷 Camera** in the item popup, or the quiet **＋** on
 Two more things worth knowing:
 
 - Photo upload is the one **blocking** write — Save is disabled while it runs, because
-  there's no URL to write until the file exists.
+  there's no URL to write until the file exists. With a batch, that's until the last one
+  finishes.
 - **Removing a photo, or deleting an item or room, does not delete the file from Drive.**
   It only unlinks it. Tidy up in Drive if you want the file gone. Likewise, if you upload a
   photo and then hit Cancel, the file stays in your Drive unreferenced.
@@ -230,8 +249,11 @@ Two more things worth knowing:
 
 - **Photos open full-screen in the app.** A larger rendition is fetched for the viewer, so it
   isn't the 46px thumbnail blown up. Tap the backdrop, press Escape or hit ✕ to close;
-  **Open original ↗** goes to the file in Drive. If the image can't load you get a message
-  and the link, not a broken icon.
+  **Open original ↗** goes to the file in Drive (and follows whichever photo you're on). If
+  the image can't load you get a message and the link, not a broken icon.
+- **With several photos the viewer is a gallery**: **swipe** left/right, tap the **‹ ›**
+  buttons, press the **arrow keys**, or tap a dot to jump. It wraps at both ends, and a
+  counter shows where you are. With a single photo none of that chrome appears.
 - **Videos open in their own app.** The tile is a real link, so tapping it hands off to the
   Instagram / YouTube / TikTok app when it's installed, and falls back to the browser when
   it isn't. This is your phone's own Universal Links (iOS) / App Links (Android) doing the
@@ -453,6 +475,12 @@ Settings are stored per-browser, so enter them once on each device.
 - **"No room tables found":** the tab has no `Title` header row, or the header is missing its
   neighbouring `Description`/`Status` cell. Tap **＋ New** beside *Rooms* and let the app
   write one.
+- **Only one of my photos shows on the row:** that's by design — the row, the board card and
+  the room tile show the **cover** (the first one) with a badge counting the rest. Tap it for
+  the full gallery.
+- **A photo I typed into the sheet by hand is ignored:** each link must start with `http://`
+  or `https://`, and links must be separated by a line break or a space. Anything else in
+  that cell is skipped.
 - **No floor chips on the home page:** no room has a floor yet. Open a room → **Edit room**
   and type one, and the chips appear. Floor names are matched ignoring case and extra spaces,
   so `ground floor` and `Ground  Floor` land in the same group — the spelling of whichever
