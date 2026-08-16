@@ -20,6 +20,8 @@ No server, no Apps Script, no build step. It's one self-contained `index.html`.
 - ➕ Create / rename / delete rooms — deleting never orphans items
 - ⚡ Optimistic updates + 20-second polling to stay in sync across devices
 - 🔐 Signs in with **your** Google account — data never leaves your Sheet and Drive
+- 🔓 **Stays signed in.** Reloading the page never asks again; the session is renewed
+  silently in the background, with a **Sign out** in ⚙ settings
 
 ---
 
@@ -192,6 +194,29 @@ both a photo and a video, the photo shows with a ▶ badge. Nothing is embedded 
 
 ---
 
+## Staying signed in
+
+Once you've signed in, **reloading the page doesn't ask again.** The app keeps your access
+token on the device and reuses it, renewing it quietly in the background while the app is
+open. You'll only see the Google screen again when the token can't be renewed — typically
+after a long gap, or if you signed out of Google.
+
+There's a **Sign out** link in ⚙ settings that clears it from this device.
+
+**Why not forever?** Google's browser sign-in issues *access tokens* — about an hour each,
+with no refresh token. Refresh tokens require a client secret, which a page with no server
+can't keep. So the app extends your session as far as a static page can, but a truly
+permanent login would need a backend.
+
+> **Worth knowing before you deploy:** the token is stored in this browser's `localStorage`,
+> which on GitHub Pages is shared across **every** site under `https://<your-username>.github.io`.
+> Your own apps sharing it is fine. If you ever host something you don't control there, that
+> page could read this token — it's scoped to Sheets and `drive.file` and expires within the
+> hour, but it's a real consideration. A custom domain, or a private repo you fully control,
+> avoids it entirely.
+
+---
+
 ## Setup
 
 ### 1. Create a Google Cloud project + OAuth Client ID
@@ -291,6 +316,11 @@ Settings are stored per-browser, so enter them once on each device.
   poll pulls in their change and you can redo yours.
 - **Items sort oddly:** they're missing timestamps. Rows written before the `Updated` column
   existed sort by sheet position until you next touch them.
+- **It asks me to sign in on every reload:** that's the bug this app fixes — make sure
+  you're on a build that includes the "Staying signed in" behaviour above. If it persists,
+  your browser is likely clearing site data on close, or blocking storage for the origin.
+- **Signed in on one device but not another:** expected. Sign-in is per-browser, like the
+  settings.
 - **Privacy:** the app runs entirely in your browser and only ever contacts Google's own
   APIs. Your Client ID, Sheet ID, and tab name live in `localStorage`; access tokens live
   only in memory and expire automatically.

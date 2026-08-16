@@ -43,10 +43,12 @@ Google Sheets API v4 (gapi client)          Google Drive API v3 (fetch/XHR)
 4. **gapi init** with `discoveryDocs:['https://sheets.googleapis.com/$discovery/rest?version=v4']`,
    then `gapi.client.setToken({access_token})` after each token grant. No API key needed
    when using OAuth. **Drive is not loaded into gapi** — see below.
-5. **Token lifecycle:** tokens last ~1h, live only in memory (never localStorage). On load,
-   try silent `requestAccessToken({prompt:''})`; on 401, silently re-request; if that fails,
-   show a "Sign in" button (`prompt:'consent'`). Keep the raw `access_token` in a variable
-   too — `fetch`/`XHR` calls to Drive need it as a bearer token.
+5. **Token lifecycle:** the browser token client issues **access tokens only** — ~1h, and
+   **no refresh token** (those require a client secret, which a static page cannot hold). A
+   permanently-signed-in static app is therefore not achievable; see
+   ["Staying signed in"](#staying-signed-in) for how close you can get. Keep the raw
+   `access_token` in a variable as well as in gapi — `fetch`/`XHR` calls to Drive need it as
+   a bearer token.
 6. **Config in localStorage:** OAuth Client ID, Spreadsheet ID (parsed from a full URL via
    regex `/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/`), tab name, plus app-specific settings.
 7. **Live data:** optimistic UI update → API call → re-fetch to reconcile; plus **20s
@@ -62,6 +64,47 @@ Google Sheets API v4 (gapi client)          Google Drive API v3 (fetch/XHR)
    was there. Two devices editing the same sheet is the normal case, not the edge case.
 10. **Derived values are never stored.** Progress percentages are recomputed client-side on
     every load and poll. Nothing to keep in sync, and no user formulas get clobbered.
+
+## Staying signed in
+
+The naive implementation keeps the token in memory only, so **every page reload starts from
+zero** — and a silent `requestAccessToken({prompt:''})` is not free: it depends on Google's
+session being reachable in an iframe, which third-party-cookie blocking (Safari ITP, Firefox,
+Chrome's phase-out) frequently breaks. When it fails the user gets a sign-in button on every
+single load, which reads as "this app logged me out again".
+
+What actually works, without a backend:
+
+1. **Persist the access token with its expiry**, keyed to the Client ID it was minted for.
+   On load, if the stored token is still valid, use it and make **no auth call at all**. This
+   is the change that removes the reload prompt.
+2. **Key it to the Client ID.** A token minted for a different project is useless, and
+   silently reusing one across a config change sends one project's token at another
+   project's scopes. Compare and discard.
+3. **Renew ahead of expiry**, not after. Check on each poll tick and re-request silently
+   once inside ~5 minutes of expiry, so a long-open tab never bounces off a 401 mid-write.
+4. **Drop the stored token on 401.** Otherwise the next load restores the same rejected
+   token and fails identically, forever.
+5. **Ship a Sign out.** Once a credential outlives the tab, the user needs a way to revoke
+   it on a shared or borrowed device. Persisting without a way to clear is a bug.
+6. **Subtract a safety margin** (~2 min) from `expires_in` so clock skew doesn't hand you a
+   token that expires in flight.
+
+### The trade-off, stated plainly
+
+An access token in `localStorage` is readable by any script on the origin. That is a real
+downgrade from memory-only, and worth weighing per app:
+
+- The token is scoped (here: `spreadsheets` + `drive.file`) and dies within the hour, so the
+  blast radius is one hour of access to data the user already had open.
+- **GitHub Pages shares one origin across every repo of an account**
+  (`https://<user>.github.io`). Anything else you host there can read this token. If you
+  publish untrusted or third-party pages under the same account, keep the token in memory or
+  move to a custom domain.
+
+`sessionStorage` is the middle option: it survives reloads in the same tab but not a fresh
+one. It fixes the reported symptom with a smaller blast radius, at the cost of asking again
+tomorrow.
 
 ## Sheets API calls used
 
