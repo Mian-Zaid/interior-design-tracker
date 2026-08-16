@@ -6,7 +6,8 @@ No server, no Apps Script, no build step. It's one self-contained `index.html`.
 
 > First time here? Open the app, tap **⚙︎**, and follow the [Setup](#setup) section.
 
-- 📱 Mobile-first, light **and** dark (follows your system)
+- 📱 Mobile-first, light **and** dark — follows your system, or tap ☀/🌙 in the header to
+  override it (System / Light / Dark also lives in ⚙ settings)
 - 🏠 **Rooms** hold **items**; each item is a checklist row with a status circle
 - ⭕ Tap the circle to cycle **To Do → In Progress → Done**. One tap, no dialog, no photo needed
 - 🗂️ **Board view** — every item across every room in three columns, filter by room,
@@ -143,6 +144,7 @@ Tap the **big progress card** to open the board.
   photo required, nothing to confirm.
 - **Tap the name** to edit the item.
 - The right edge shows the item's photo or video if it has one, or a quiet **＋** to add one.
+  **Tap a photo** to see it full-screen; **tap a video** to open it in that app.
 - Active items sit on top, most recently changed first. Finished items sink below, newest
   first, **10 at a time** with **Show 10 more**.
 
@@ -188,9 +190,61 @@ Two more things worth knowing:
   It only unlinks it. Tidy up in Drive if you want the file gone. Likewise, if you upload a
   photo and then hit Cancel, the file stays in your Drive unreferenced.
 
-**Video link:** paste any URL (YouTube, a Drive video, Vimeo). YouTube URLs (`watch?v=`,
-`youtu.be/`, `/shorts/`, `/embed/`) get a thumbnail from `img.youtube.com`. If an item has
-both a photo and a video, the photo shows with a ▶ badge. Nothing is embedded or autoplayed.
+### Tapping media
+
+- **Photos open full-screen in the app.** A larger rendition is fetched for the viewer, so it
+  isn't the 46px thumbnail blown up. Tap the backdrop, press Escape or hit ✕ to close;
+  **Open original ↗** goes to the file in Drive. If the image can't load you get a message
+  and the link, not a broken icon.
+- **Videos open in their own app.** The tile is a real link, so tapping it hands off to the
+  Instagram / YouTube / TikTok app when it's installed, and falls back to the browser when
+  it isn't. This is your phone's own Universal Links (iOS) / App Links (Android) doing the
+  work — the app is never forced open, and on a desktop it just opens a tab.
+
+If an item has both a photo and a video, the tile shows the photo with a ▶ badge; tapping it
+views the photo, and the video is one tap further in via the item's **Edit** screen.
+
+### Video links & previews
+
+Paste a link into **Video link** and a preview appears under the field, the same way a photo
+preview does. What you get depends on the platform:
+
+| Link | Preview |
+|---|---|
+| **Instagram** Reel / post / IGTV | Embedded inline (portrait), public posts only |
+| **YouTube** (`watch?v=`, `youtu.be`, `/shorts/`, `/embed`) | Thumbnail; tap ▶ to play in place |
+| **Google Drive** video | Thumbnail; tap ▶ to play in place |
+| **TikTok**, **Vimeo** | Embedded inline |
+| Anything else | A card with the hostname and an **Open ↗** link |
+
+In the checklist, an item with a video shows a tinted play tile — Instagram's gradient,
+YouTube's red — so you can tell at a glance what kind of reference it is. If an item has
+both a photo and a video, the photo wins and gets a small ▶ badge.
+
+**Why Instagram embeds rather than showing a thumbnail:** Instagram's oEmbed API has required
+a Facebook app token since 2020, so there is no way for a page with no server to fetch a
+Reel's poster image. The `/embed` endpoint needs no token, so that's what's used. Two
+consequences worth knowing:
+
+- **It only works for public posts.** A private or deleted Reel renders blank. The **Open ↗**
+  link beside every preview always works, so nothing is lost.
+- **It loads a frame from Instagram**, which means their cookies and scripts. If you'd rather
+  not, the link still works fine without opening the item.
+
+Nothing ever autoplays.
+
+---
+
+## Light & dark
+
+The app follows your phone's light/dark setting out of the box. Tap the **sun / moon button**
+in the header to override it — the icon shows what you'll switch *to*. Your choice is
+remembered on that device and applied before the page paints, so there's no white flash on a
+dark phone.
+
+⚙ Settings has the full control: **System / Light / Dark**. Picking **System** clears the
+override and goes back to following the phone, including live if you change it while the app
+is open.
 
 ---
 

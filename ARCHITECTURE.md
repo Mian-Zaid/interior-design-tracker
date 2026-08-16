@@ -200,6 +200,102 @@ is a hidden gesture with no affordance and it is fiddly one-handed — the exact
 for a non-technical user. Plain ‹ › buttons on each card do the same job, work with a
 keyboard and a screen reader, and cost a few lines.
 
+## Opening media: viewer vs. handoff
+
+Two different taps that look identical in a list and must not be built the same way.
+
+**A photo should stay in your app.** A new browser tab for an image is a dead end the user
+has to navigate back from. Render it in an overlay, fetch a *larger* rendition than the
+thumbnail (the 46px version blown up looks terrible), lock body scroll while it's open, and
+drop the `src` on close so a big download in flight is abandoned. Give it a close button, a
+backdrop tap, and Escape — and an "open original" link for the case where the render fails,
+because `onerror` on an `<img>` is the one media failure you *can* detect.
+
+**A video should leave for the platform's app.** The mechanism is a real `<a href>` — a
+genuine top-level navigation is what lets iOS Universal Links and Android App Links hand off
+to an installed app. `window.open()` tends to land in a browser tab instead, and a custom
+scheme is not an option here: `instagram://media?id=` wants a numeric media ID, while a Reel
+URL only carries a shortcode. The plain https URL *is* the deep link on modern mobile.
+
+Consequences worth designing for:
+
+- Anchors bring native behaviour for free — long-press menu, middle-click, "open in new tab".
+  A `<button>` + `window.open` throws all of that away.
+- Anything with pointer-drag handling nearby must exclude anchors from drag initiation, or a
+  tap gets swallowed by the drag threshold.
+- On desktop the handoff simply doesn't happen and a tab opens. That's the correct fallback,
+  not a bug to work around.
+
+## Theming: three states, not two
+
+A light/dark switch looks trivial and has one non-obvious trap: there are **three** states,
+not two — light, dark, and *follow the system*, which is the default and must stay
+recoverable. Model it as an attribute on `<html>` that is simply absent while following the
+system:
+
+```css
+:root{ /* light tokens */ }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ /* dark tokens */ }
+}
+:root[data-theme="dark"]{ /* dark tokens again */ }
+```
+
+The `:not()` guard is what lets an explicit *light* choice beat a dark OS; the standalone
+rule is what lets an explicit *dark* choice beat a light OS. Drop either and the override
+only works in one direction.
+
+Three more things that separate a working toggle from a good one:
+
+- **Apply the saved theme in `<head>`, before first paint.** Doing it from the main script
+  at the end of `<body>` gives a dark-mode user a white flash on every load. A three-line
+  inline script that reads storage and stamps the attribute costs nothing.
+- **Keep `<meta name="theme-color">` in step.** The static `media=` pair only covers the
+  follow-the-system case; an explicit override needs a single unmediated tag updated in JS,
+  or the mobile browser chrome contradicts the page.
+- **Listen for OS changes while unset.** If the user is following the system and flips it
+  mid-session, `matchMedia(...).addEventListener("change", …)` keeps you in sync. Ignore the
+  event once an explicit choice exists.
+
+Treat an unrecognised stored value as "follow the system" rather than trusting it into the
+attribute — it degrades to the sane default instead of a broken stamp.
+
+## Previewing third-party media without an API key
+
+Not every platform lets a static page show a preview, and the differences decide the UI:
+
+| Platform | Poster image? | Approach |
+|---|---|---|
+| YouTube, Google Drive | yes, hot-linkable | `<img>` thumbnail, swap to an iframe on tap |
+| Instagram, TikTok, Vimeo | no | iframe embed directly |
+| anything else | no | a card with the hostname and an open link |
+
+**Instagram is the instructive case.** Its oEmbed endpoint has required a Facebook app token
+since 2020, so a poster frame is simply unavailable to a page with no server. `/embed`
+however needs no token and renders public posts in an iframe — so the preview is the embed
+itself. Design around the capability you actually have, rather than pretending a thumbnail
+exists.
+
+Three rules that keep this from turning into a liability:
+
+- **Always render an "Open ↗" link beside the embed.** Third-party frames fail for reasons
+  you cannot detect cross-origin — private post, deleted post, blocked frame, no network —
+  and there is no `onerror` for an iframe. The link is the fallback that always works.
+- **Prefer a poster image over an autoloaded frame** where a poster exists. An `<img>` costs
+  one request; an embed costs a third-party frame with its own scripts and cookies on every
+  render. Load the frame when the user asks for it.
+- **Tear the iframe down when the container closes.** Setting `innerHTML=""` on close stops
+  a hidden embed from continuing to load and phone home behind a dismissed modal.
+
+**Test the frame, not the attribute.** Asserting on `iframe.src` passes even when the embed
+is completely broken — a wrong route glob in the harness hid exactly that here. Assert that
+the frame *navigated*: check `page.frames()` for the expected URL and the absence of
+`chrome-error://`.
+
+Also note aspect ratio belongs on the *container*, not the `<img>`: a poster that hides
+itself via `onerror` will otherwise collapse the button to zero height and take the play
+control with it.
+
 ## Adding Drive file uploads
 
 The new capability in this app, and the part worth copying verbatim.
