@@ -278,8 +278,26 @@ Keep the raw cell string as the model and derive the list at the edges (`imgList
 strings, so the concurrency story is unchanged.
 
 Where this stops working: when you need to query or sort *by* the individual values, or when
-the list can grow unbounded. Cap it (20 here) and make the cap a UI message, not a silent
-truncation.
+the list can grow unbounded. Cap it (20 photos, 10 video links here) and make the cap a UI
+message, not a silent truncation.
+
+The pattern is worth applying **once and then reusing**: photos and video links are two
+different features with two different editors, but they are the same three functions
+(`urlList` / `urlJoin` / `firstUrl`) over two different cells. If the second use of a trick
+needs a second implementation, the first one was written too specifically.
+
+Two shapes of editor fall out of it, and which you want depends on how a value is produced:
+
+| Values come from | Editor |
+|---|---|
+| a picker (files) | **one control, many results** — a strip of results with per-item remove |
+| typing (URLs) | **repeating rows** — one input each, with per-row remove and ＋ to add |
+
+Don't force typed values through an add-to-a-list button: a row per link means the user can
+see and fix all of them at once, and there is no hidden "commit" step where a typed value is
+still in the box when they hit Save. Drop blank rows silently at save time, and **keep the
+last row when it's emptied** rather than removing it — a field group with nothing in it reads
+as broken, and there'd be nothing left to type into.
 
 ### Batch uploads: sequential, and partial-success by default
 
@@ -363,6 +381,10 @@ URL only carries a shortcode. The plain https URL *is* the deep link on modern m
 
 Consequences worth designing for:
 
+- **An anchor can only point at one place**, so a list of several videos still hands off to
+  the first. Turning the tile into a chooser would make it a `<button>` and lose the handoff
+  for every tap — the wrong trade for a 46px control. Badge the count and put the full list in
+  the item's editor.
 - Anchors bring native behaviour for free — long-press menu, middle-click, "open in new tab".
   A `<button>` + `window.open` throws all of that away.
 - Anything with pointer-drag handling nearby must exclude anchors from drag initiation, or a
@@ -428,6 +450,15 @@ Three rules that keep this from turning into a liability:
 - **Prefer a poster image over an autoloaded frame** where a poster exists. An `<img>` costs
   one request; an embed costs a third-party frame with its own scripts and cookies on every
   render. Load the frame when the user asks for it.
+- **Make that conditional on how many you're showing.** Auto-embedding is fine for one link
+  and wrong for five: five third-party frames on dialog open is five sets of scripts and five
+  screens of scrolling before the user reaches Save. When a poster exists, show it (it's one
+  image either way); when only an embed exists, auto-load it **only if it's the only one**,
+  otherwise render a "Show preview" strip. The single-item case then behaves exactly as it did
+  before the feature, which is also what keeps the existing tests honest.
+- **Re-render one preview, not the list.** Rebuilding the container on every keystroke tears
+  down sibling iframes and restarts anything playing. Scope the update to the row that
+  changed.
 - **Tear the iframe down when the container closes.** Setting `innerHTML=""` on close stops
   a hidden embed from continuing to load and phone home behind a dismissed modal.
 
