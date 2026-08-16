@@ -65,6 +65,34 @@ Google Sheets API v4 (gapi client)          Google Drive API v3 (fetch/XHR)
 10. **Derived values are never stored.** Progress percentages are recomputed client-side on
     every load and poll. Nothing to keep in sync, and no user formulas get clobbered.
 
+## Multi-user, without building multi-user
+
+A Sheets-backed app gets collaboration almost free, because the sharing model already exists
+one layer down: **Google decides who may write, not the app.** A second person needs edit
+access on the spreadsheet and a place on the OAuth consent screen's test-user list — and then
+the same static page works for them, signed in as themselves. There is no account system to
+build, no server to hold a session, and no second copy of the data.
+
+Three things are worth getting right anyway:
+
+- **Config sharing is the real friction.** The blocker isn't permissions, it's asking someone
+  to type a 72-character Client ID on a phone. A `#/setup?…` link carrying the non-secret
+  config (client id, document id, tab) removes it. Strip it from the URL with
+  `history.replaceState` once applied, and **never put a token in it** — config is shareable,
+  credentials are not.
+- **Guarded writes stop being a nicety.** With one user, "re-read the anchor cell before
+  writing" protects against a second tab. With several, it's the entire concurrency story.
+  Losing a write silently is much worse than refusing one loudly.
+- **Uploaded files belong to the uploader**, not the group. Under `drive.file` each person's
+  photos live in their own Drive and are shared by link, so the group can see them — but the
+  owner can still delete them out from under everyone. Say so rather than implying the data
+  is collectively owned.
+
+The scope classification decides the ceiling: `drive.file` is non-sensitive, but
+`.../auth/spreadsheets` is **sensitive**, so an app that stays unverified is limited to the
+consent screen's 100 test users. That is plenty for a household and nowhere near enough for
+a product — a distinction worth making before promising anyone "just share the link".
+
 ## Staying signed in
 
 The naive implementation keeps the token in memory only, so **every page reload starts from
