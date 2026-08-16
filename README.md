@@ -144,6 +144,7 @@ Tap the **big progress card** to open the board.
   photo required, nothing to confirm.
 - **Tap the name** to edit the item.
 - The right edge shows the item's photo or video if it has one, or a quiet **＋** to add one.
+  **Tap a photo** to see it full-screen; **tap a video** to open it in that app.
 - Active items sit on top, most recently changed first. Finished items sink below, newest
   first, **10 at a time** with **Show 10 more**.
 
@@ -188,6 +189,20 @@ Two more things worth knowing:
 - **Removing a photo, or deleting an item or room, does not delete the file from Drive.**
   It only unlinks it. Tidy up in Drive if you want the file gone. Likewise, if you upload a
   photo and then hit Cancel, the file stays in your Drive unreferenced.
+
+### Tapping media
+
+- **Photos open full-screen in the app.** A larger rendition is fetched for the viewer, so it
+  isn't the 46px thumbnail blown up. Tap the backdrop, press Escape or hit ✕ to close;
+  **Open original ↗** goes to the file in Drive. If the image can't load you get a message
+  and the link, not a broken icon.
+- **Videos open in their own app.** The tile is a real link, so tapping it hands off to the
+  Instagram / YouTube / TikTok app when it's installed, and falls back to the browser when
+  it isn't. This is your phone's own Universal Links (iOS) / App Links (Android) doing the
+  work — the app is never forced open, and on a desktop it just opens a tab.
+
+If an item has both a photo and a video, the tile shows the photo with a ▶ badge; tapping it
+views the photo, and the video is one tap further in via the item's **Edit** screen.
 
 ### Video links & previews
 

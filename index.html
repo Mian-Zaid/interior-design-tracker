@@ -160,7 +160,7 @@
   .row.is-done .t1{text-decoration:line-through;color:var(--muted);font-weight:500}
   .row .t2{font-size:11.5px;color:var(--muted);margin-top:1px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
   .med{width:46px;height:46px;border-radius:10px;overflow:hidden;flex:none;position:relative;background:var(--sunk);
-    border:none;padding:0;cursor:pointer;display:block}
+    border:none;padding:0;cursor:pointer;display:block;text-decoration:none}
   .med img{width:100%;height:100%;object-fit:cover;display:block}
   .med .play{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:15px;background:rgba(6,20,19,.4)}
   .med.vidonly{background:#16302e;color:#fff;font-size:17px}
@@ -224,7 +224,8 @@
   .kcard .kt{font-size:13.5px;font-weight:650;line-height:1.32;word-break:break-word;cursor:pointer}
   .kcard .kr{font-size:10.5px;font-weight:700;color:var(--muted);margin-top:4px;display:inline-block;
     background:var(--track);padding:2px 7px;border-radius:5px}
-  .kmed{width:38px;height:38px;border-radius:8px;overflow:hidden;flex:none;position:relative;background:var(--sunk)}
+  .kmed{width:38px;height:38px;border-radius:8px;overflow:hidden;flex:none;position:relative;background:var(--sunk);
+    display:block;text-decoration:none}
   .kmed img{width:100%;height:100%;object-fit:cover;display:block}
   .kmed .play{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:12px;background:rgba(6,20,19,.4)}
   .kmed.vidonly{background:#16302e;color:#fff;font-size:14px}
@@ -301,6 +302,24 @@
   .upbar.show{display:block}
   .upbar > i{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .2s linear}
 
+  /* full-size photo viewer */
+  .lb{position:fixed;inset:0;z-index:80;display:none;flex-direction:column;background:rgba(4,14,13,.94)}
+  .lb.open{display:flex}
+  .lb-stage{flex:1;min-height:0;display:grid;place-items:center;padding:52px 12px 8px}
+  .lb-stage img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;display:block}
+  .lb-fail{color:#e6f0ee;font-size:14px;opacity:.8}
+  .lb-close{
+    position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:1;
+    width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.25);
+    background:rgba(0,0,0,.45);color:#fff;font-size:18px;cursor:pointer;display:grid;place-items:center;
+  }
+  .lb-close:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .lb-bar{
+    display:flex;align-items:center;gap:12px;justify-content:space-between;
+    padding:12px 16px calc(16px + env(safe-area-inset-bottom));color:#cfe3e0;font-size:13px;
+  }
+  .lb-cap{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lb-bar a{color:#7fe6d5;font-weight:700;text-decoration:none;flex:none}
   .confirm-msg{font-size:14px;color:var(--text);white-space:pre-wrap;margin:0 0 4px;line-height:1.5}
   .err{font-size:12px;color:var(--danger);margin-top:8px;min-height:14px}
   .modal-back{position:fixed;inset:0;background:rgba(4,16,15,.55);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
@@ -476,7 +495,7 @@
       <div class="field full">
         <label>Inspiration — optional</label>
         <div class="prevwrap hidden" id="prevWrap">
-          <img id="photoPrevImg" alt="" />
+          <img id="photoPrevImg" alt="" role="button" tabindex="0" title="View full size" style="cursor:zoom-in" />
           <div style="flex:1">
             <div style="font-size:13px;font-weight:700" id="prevLabel">Photo attached</div>
             <div class="hintx" style="margin-top:2px">Stored in your Drive, shared by link.</div>
@@ -514,6 +533,19 @@
     <div class="row2 hidden" id="taskDeleteRow" style="margin-top:10px">
       <button class="btn ghost" id="taskDelete" type="button" style="color:var(--danger)">Delete this item</button>
     </div>
+  </div>
+</div>
+
+<!-- Full-size image viewer -->
+<div class="lb" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo">
+  <button class="lb-close" id="lbClose" type="button" aria-label="Close">✕</button>
+  <div class="lb-stage" id="lbStage">
+    <img id="lbImg" alt="" />
+    <div class="lb-fail hidden" id="lbFail">Couldn't load this photo.</div>
+  </div>
+  <div class="lb-bar">
+    <span class="lb-cap" id="lbCap"></span>
+    <a id="lbOpen" href="#" target="_blank" rel="noopener">Open original ↗</a>
   </div>
 </div>
 
@@ -613,7 +645,7 @@
    "taskBack","taskTitle","taskSubtitle","taskRoom","taskNewRoom","taskTitleInput","taskSegs","taskDesc","taskVideo",
    "videoField","vidPrev","toggleVideoBtn","optBox","optSub","prevWrap","photoPrevImg","prevLabel","pickGalleryBtn","pickCameraBtn",
    "removePhotoBtn","fileGallery","fileCamera","upBar","upBarFill","taskErr","taskSave","taskCancel","taskDelete","taskDeleteRow",
-   "confirmBack","confirmMsg","confirmYes","confirmNo",
+   "lightbox","lbClose","lbImg","lbCap","lbOpen","lbFail","confirmBack","confirmMsg","confirmYes","confirmNo",
    "newRoomBack","newRoomName","newRoomErr","newRoomCreate","newRoomCancel",
    "renameBack","renameName","renameErr","renameSave","renameCancel",
    "delRoomBack","delRoomMsg","delRoomMoveWrap","delRoomTarget","delRoomErr","delRoomActions"
@@ -649,6 +681,11 @@
   function imgSrc(url){
     var id=driveFileId(url);
     return id?("https://drive.google.com/thumbnail?id="+encodeURIComponent(id)+"&sz=w400"):trimStr(url);
+  }
+  // Same endpoint, bigger rendition — the w400 thumbnail would look mushy full-screen.
+  function imgLarge(url){
+    var id=driveFileId(url);
+    return id?("https://drive.google.com/thumbnail?id="+encodeURIComponent(id)+"&sz=w1600"):trimStr(url);
   }
   function youtubeId(url){
     var u=trimStr(url);if(!u)return "";
@@ -801,13 +838,17 @@
 
   function medHTML(t,cls){
     var img=safeUrl(t.image), v=videoInfo(t.video);
-    if(img) return '<button class="'+cls+'" data-open="'+esc(img)+'" title="Open photo" aria-label="Open photo">'
+    // Photo → in-app viewer. Video → a real <a>, never window.open: a genuine top-level
+    // navigation is what lets iOS Universal Links / Android App Links hand off to the
+    // installed app. window.open lands in a browser tab instead.
+    if(img) return '<button class="'+cls+'" data-img="'+esc(img)+'" data-cap="'+esc(t.title||"")+'" '
+      +'title="View photo" aria-label="View photo">'
       +'<img src="'+esc(imgSrc(img))+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" />'
       +(v?'<span class="play">▶</span>':'')+'</button>';
-    if(v) return '<button class="'+cls+' vidonly plat-'+esc(v.kind)+'" data-open="'+esc(v.url)+'" '
-      +'title="Watch on '+esc(v.label)+'" aria-label="Watch on '+esc(v.label)+'">'
+    if(v) return '<a class="'+cls+' vidonly plat-'+esc(v.kind)+'" href="'+esc(v.url)+'" '
+      +'target="_blank" rel="noopener" title="Open in '+esc(v.label)+'" aria-label="Open in '+esc(v.label)+'">'
       +(v.thumb?'<img src="'+esc(v.thumb)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" />':'')
-      +'<span class="play">▶</span></button>';
+      +'<span class="play">▶</span></a>';
     return "";
   }
 
@@ -1359,7 +1400,35 @@
   }
 
   /* ---------------- list / board interactions ---------------- */
-  function openMedia(url){ var u=safeUrl(url); if(u) window.open(u,"_blank","noopener"); }
+  var lbPrev=null;
+  function openLightbox(url,caption,srcOverride){
+    var u=safeUrl(url)||trimStr(srcOverride||"");
+    if(!u && !srcOverride) return;
+    lbPrev=document.activeElement;
+    els.lbFail.classList.add("hidden");
+    els.lbImg.style.display="";
+    els.lbImg.onerror=function(){ els.lbImg.style.display="none"; els.lbFail.classList.remove("hidden"); };
+    els.lbImg.src=srcOverride||imgLarge(u);
+    els.lbImg.alt=caption||"Photo";
+    els.lbCap.textContent=caption||"";
+    if(safeUrl(url)){ els.lbOpen.href=url; els.lbOpen.classList.remove("hidden"); }
+    else els.lbOpen.classList.add("hidden");
+    els.lightbox.classList.add("open");
+    document.body.style.overflow="hidden";
+    els.lbClose.focus();
+  }
+  function closeLightbox(){
+    els.lightbox.classList.remove("open");
+    els.lbImg.removeAttribute("src");   // stop a large download if it's still in flight
+    document.body.style.overflow="";
+    if(lbPrev&&lbPrev.focus){ lbPrev.focus(); lbPrev=null; }
+  }
+  els.lbClose.addEventListener("click",closeLightbox);
+  els.lightbox.addEventListener("click",function(e){
+    // anywhere except the image itself or the bottom bar's link
+    if(e.target.closest("#lbImg")||e.target.closest(".lb-bar a"))return;
+    closeLightbox();
+  });
 
   els.rooms.addEventListener("click",function(e){
     var t=e.target.closest(".tile"); if(t) go("room",t.getAttribute("data-room"));
@@ -1373,8 +1442,8 @@
     if(ed){ var t2=state.byId[ed.getAttribute("data-edit")]; if(t2) openTaskModal(t2,null); return; }
     var ad=e.target.closest("[data-add]");
     if(ad){ var t3=state.byId[ad.getAttribute("data-add")]; if(t3) openTaskModal(t3,null,true); return; }
-    var op=e.target.closest("[data-open]");
-    if(op){ openMedia(op.getAttribute("data-open")); return; }
+    var im=e.target.closest("[data-img]");
+    if(im){ openLightbox(im.getAttribute("data-img"), im.getAttribute("data-cap")); return; }
   });
   els.roomShowMore.addEventListener("click",function(){ state.doneLimit+=DONE_PAGE; renderRoomView(); });
   els.addItemBtn.addEventListener("click",function(){ openTaskModal(null,state.room); });
@@ -1396,8 +1465,8 @@
     }
     var ed=e.target.closest("[data-edit]");
     if(ed){ var t2=state.byId[ed.getAttribute("data-edit")]; if(t2) openTaskModal(t2,null); return; }
-    var op=e.target.closest("[data-open]");
-    if(op){ openMedia(op.getAttribute("data-open")); return; }
+    var im=e.target.closest("[data-img]");
+    if(im){ openLightbox(im.getAttribute("data-img"), im.getAttribute("data-cap")); return; }
   });
 
   /* pointer drag on the board */
@@ -1411,7 +1480,7 @@
     return found;
   }
   els.cols.addEventListener("pointerdown",function(e){
-    if(e.target.closest(".mv")||e.target.closest("[data-open]")||e.target.closest(".showmore"))return;
+    if(e.target.closest(".mv")||e.target.closest("[data-img]")||e.target.closest("a")||e.target.closest(".showmore"))return;
     var card=e.target.closest(".kcard"); if(!card||!card.getAttribute("data-id"))return;
     var rect=card.getBoundingClientRect();
     drag={card:card,id:card.getAttribute("data-id"),x:e.clientX,y:e.clientY,
@@ -1597,6 +1666,19 @@
         if(err&&err.status===401) requestToken(false).catch(function(){});
       });
   }
+  function viewTaskPhoto(){
+    if(!taskImage){
+      // a just-picked local file still mid-upload: preview what's on screen
+      var cur=els.photoPrevImg.getAttribute("src");
+      if(cur) openLightbox("", els.taskTitleInput.value||"Photo", cur);
+      return;
+    }
+    openLightbox(taskImage, els.taskTitleInput.value||"Photo");
+  }
+  els.photoPrevImg.addEventListener("click",viewTaskPhoto);
+  els.photoPrevImg.addEventListener("keydown",function(e){
+    if(e.key==="Enter"||e.key===" "){ e.preventDefault(); viewTaskPhoto(); }
+  });
   els.pickGalleryBtn.addEventListener("click",function(){ els.fileGallery.click(); });
   els.pickCameraBtn.addEventListener("click",function(){ els.fileCamera.click(); });
   els.fileGallery.addEventListener("change",function(){ onFilePicked(els.fileGallery); });
@@ -1822,7 +1904,8 @@
   });
   document.addEventListener("keydown",function(e){
     if(e.key!=="Escape")return;
-    if(els.confirmBack.classList.contains("open")) closeConfirm(false);
+    if(els.lightbox.classList.contains("open")) closeLightbox();
+    else if(els.confirmBack.classList.contains("open")) closeConfirm(false);
     else if(els.newRoomBack.classList.contains("open")) closeNewRoom();
     else if(els.renameBack.classList.contains("open")) closeRename();
     else if(els.delRoomBack.classList.contains("open")) closeDelRoom();
