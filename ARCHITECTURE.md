@@ -224,6 +224,34 @@ position, so a legacy table looks slightly stale rather than broken.
 `USER_ENTERED`, an item titled `=1+1` becomes a formula in the user's sheet. Nothing in this
 app needs Sheets to interpret input, so `RAW` is strictly safer.
 
+### Cheaper still: metadata in space the layout already owns
+
+Not every new field needs a column. A side-by-side layout has a **title row** above each
+block's header row, and that row is almost entirely empty — only the first cell (the block
+title) is used, while the block's remaining columns sit there unclaimed. That is free
+storage for per-block metadata.
+
+The room *floor* went into the cell immediately right of the room name, on the title row.
+Compared with a new column it is strictly better on every axis that matters here:
+
+- **Nothing shifts and nothing widens.** The cell is inside the block's existing rectangle,
+  so no `appendDimension`, no grid-limit boundary moved, no neighbouring block touched.
+- **No migration.** An old sheet reads as "blank cell" = "no floor". There is no header to
+  add and no "is this column safe to claim?" scan to write.
+- **It stays legible in Sheets.** `Kitchen | Ground floor` above the headers reads as a
+  caption to a human editing the tab by hand, which a seventh data column would not.
+- **One write, not two.** Creating or editing a block writes name and metadata as a single
+  two-cell range, so the two can never disagree.
+
+The cost is that it doesn't scale: the title row holds a handful of fields before it stops
+reading as a caption, and the metadata is positional rather than named — nothing labels that
+cell "Floor". Use it for one or two small per-block attributes; reach for a real column when
+the field belongs to *rows*, or when you'd need a header to explain it.
+
+**Make the resulting UI conditional on the data.** Grouping and filter chips render only
+once at least one block has a floor; with none, the home page is byte-for-byte what it was
+before the feature. An optional field that adds permanent chrome isn't optional in practice.
+
 ## Derived views over the same parse
 
 Once the sheet is parsed into a flat list, extra views are nearly free — they are filters
@@ -234,6 +262,7 @@ and sorts, not new data:
 | Room checklist | the list filtered to one room, active first, done last |
 | Board | the same list bucketed by status, optionally filtered by room |
 | Room tiles | per-room counts, with the most recent photo as a cover |
+| Floor groups | the same tiles bucketed by a per-room label, or filtered to one |
 
 None of them touch the sheet differently: moving a card between board columns is the exact
 same single-row write as tapping the status circle in the list. Build the write path once
