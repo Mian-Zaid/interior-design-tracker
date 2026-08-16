@@ -10,15 +10,18 @@ No server, no Apps Script, no build step. It's one self-contained `index.html`.
   override it (System / Light / Dark also lives in ⚙ settings)
 - 🏠 **Rooms** hold **items**; each item is a checklist row with a status circle
 - ⭕ Tap the circle to cycle **To Do → In Progress → Done**. One tap, no dialog, no photo needed
+- 🏢 **Floors** — give a room any floor name you like (*Ground floor*, *Basement*, *Attic*…)
+  and the home page groups and filters by it. Skip it and nothing changes
 - 🗂️ **Board view** — every item across every room in three columns, filter by room,
   **drag** a card between columns or tap the **‹ ›** arrows
-- 📊 Auto progress: a ring per room, a bar overall (`done ÷ total`), never written to the sheet
+- 📊 Auto progress: one number for the whole project, a thin bar per room
+  (`done ÷ total`), never written to the sheet
 - 🖼️ **Optional** inspiration image and/or video link per item — add either, both, or neither,
   now or any time later. Nothing ever requires media
 - 🕒 Sorted **most recently changed first**; finished items sink to the bottom, capped at 10
   with **Show 10 more**
 - ✎ Edit, 🗑 delete, 🔀 move items between rooms — destructive actions confirmed
-- ➕ Create / rename / delete rooms — deleting never orphans items
+- ➕ Create / edit / delete rooms — deleting never orphans items
 - ⚡ Optimistic updates + 20-second polling to stay in sync across devices
 - 👥 **Two people, two devices, one list** — share the sheet, send a setup link, each signs
   in with their own Google account
@@ -60,6 +63,7 @@ The app reads a **single tab** (default name `Interior`) that holds **one or mor
 tables laid out side by side**. Each table is one **room**:
 
 - The **room name** sits in a cell above the table's header row, in the Title column.
+- The **floor** (optional) sits in the cell **immediately to its right**, on the same row.
 - The **header row** is `Title | Description | Status | Image URL | Video URL | Updated`.
 - Rows below are that room's items. Blank rows are fine — they're gaps left by deleted
   items, and the app keeps reading past them.
@@ -67,7 +71,7 @@ tables laid out side by side**. Each table is one **room**:
 
 Example (two rooms side by side, with a blank column between them):
 
-| Kitchen | | | | | | | Bedroom | | | | | |
+| Kitchen | Ground floor | | | | | | Bedroom | First floor | | | | |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | **Title** | **Description** | **Status** | **Image URL** | **Video URL** | **Updated** | | **Title** | **Description** | **Status** | **Image URL** | **Video URL** | **Updated** |
 | Install cabinets | Upper + lower units | Done | https://drive.google.com/uc?id=… | | 2026-08-11T10:00:00Z | | Paint walls | Matte white, 2 coats | Done | | | 2026-08-08T10:00:00Z |
@@ -77,8 +81,29 @@ The app **auto-detects every table** by finding each `Title` header (it also che
 `Description` or `Status` sits next to it, so an item literally named "Title" doesn't create
 a phantom room). You don't configure columns anywhere.
 
-You don't have to build this by hand — connect an empty sheet and tap **＋ New Room**; the
-app writes the title cell and the full header row for you.
+You don't have to build this by hand — connect an empty sheet and tap **＋ New** under
+*Rooms*; the app writes the title cell and the full header row for you.
+
+### Floors
+
+Every room can carry a **floor** — a free-text label you type yourself. There is no fixed
+list: *Ground floor*, *First floor*, *Basement*, *Attic*, *Guest annexe*, *Upstairs* are all
+equally valid, and matching is case-insensitive so `ground floor` and `Ground Floor` group
+together.
+
+It lives in the cell **immediately right of the room name**, on the title row — inside the
+table's own six columns, in a cell nothing else uses. Adding a floor therefore shifts nothing
+and needs no new column. You can type it straight into the sheet if you prefer.
+
+- Set it when you create a room, or any time later via **Edit room**.
+- Leave it blank and the room is simply ungrouped — everything works exactly as before.
+- On the home page, rooms are **grouped under floor headings** and a chip row lets you show
+  one floor at a time. Rooms with no floor collect under **No floor**.
+- **If no room has a floor, none of that chrome appears at all** — no chips, no headings. The
+  feature is invisible until you use it.
+
+Existing sheets need no migration: a room with an empty cell there is just a room with no
+floor.
 
 ### The `Updated` column
 
@@ -125,7 +150,8 @@ load and poll — **nothing is written to the sheet**, so no formulas of yours g
   formula.
 - **Create room** adds a new table in fresh columns to the right of everything already in
   the sheet — nothing shifts.
-- **Rename room** just overwrites its title cell; the items stay put beneath it.
+- **Edit room** just overwrites its title cell and the floor cell beside it; the items stay
+  put beneath it.
 - **Delete room** never deletes items silently. If the room has items you must first either
   **move all of them** to another room or **delete them** along with the room — each behind
   a confirmation dialog. Only then is the table cleared, in its own columns only.
@@ -136,9 +162,17 @@ load and poll — **nothing is written to the sheet**, so no formulas of yours g
 
 ### Home
 
-Room tiles, each showing a progress ring and its most recent photo as the cover (rooms with
-no photos show a tinted tile — that's normal, not an error). Tap a tile to open that room.
-Tap the **big progress card** to open the board.
+Deliberately quiet. At the top, one number — the whole project's progress — over a hairline
+bar. Below it, **Rooms** with a **＋ New**, then the room tiles: the room's most recent photo,
+a thin progress bar, and its name with `done of total` underneath. Rooms with no photos show
+an empty well — that's normal, not an error.
+
+- **Tap a tile** to open that room.
+- **Tap the big number** to open the board.
+- Once any room has a floor, a chip row appears: **All**, then one chip per floor, plus
+  **No floor** if some rooms are unassigned. Under **All** the tiles are grouped beneath
+  uppercase floor headings; pick a single floor and you get a plain grid of just those rooms.
+  Your choice is remembered on the device.
 
 ### Room checklist
 
@@ -373,7 +407,7 @@ re-consent.
    `Interior`), and **Save**.
 3. Click **Sign in with Google** and allow access to Sheets and Drive. Accept the
    "Google hasn't verified this app" screen — that's expected in Testing mode.
-4. Tap **＋ New Room** to create your first room.
+4. Tap **＋ New** beside *Rooms* to create your first room. The **Floor** field is optional.
 
 ---
 
@@ -417,7 +451,12 @@ Settings are stored per-browser, so enter them once on each device.
   — not the `.../repo/` path.
 - **"Sheet or tab not found (404)":** re-check the Sheet link/ID and Tab name in ⚙ settings.
 - **"No room tables found":** the tab has no `Title` header row, or the header is missing its
-  neighbouring `Description`/`Status` cell. Tap **＋ New Room** and let the app write one.
+  neighbouring `Description`/`Status` cell. Tap **＋ New** beside *Rooms* and let the app
+  write one.
+- **No floor chips on the home page:** no room has a floor yet. Open a room → **Edit room**
+  and type one, and the chips appear. Floor names are matched ignoring case and extra spaces,
+  so `ground floor` and `Ground  Floor` land in the same group — the spelling of whichever
+  room the app reads first is the one shown on the chip.
 - **"Could not create room" / "exceeds grid limits":** a Google Sheet tab has a fixed grid —
   a new one is 1000 rows × 26 columns — and each room takes 6 columns plus a gap, so the 4th
   room needs column 27. The app now widens the tab automatically (appending columns at the

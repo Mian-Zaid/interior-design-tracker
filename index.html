@@ -92,54 +92,59 @@
   .hidden{display:none !important}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
 
-  /* progress card — doubles as the door to the board */
-  .hero{
-    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:var(--radius);
-    padding:16px 17px;margin-bottom:16px;position:relative;overflow:hidden;cursor:pointer;border:none;
-    width:100%;text-align:left;font:inherit;display:block;
+  /* Option A: progress is a number and a hairline, not a saturated block. */
+  .prog{
+    appearance:none;border:none;background:transparent;color:inherit;font:inherit;width:100%;
+    text-align:left;padding:0;cursor:pointer;display:block;margin-bottom:6px;
   }
-  .hero:active{transform:scale(.995)}
-  .hero:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-  .hero .lbl{font-size:12.5px;opacity:.88;font-weight:600}
-  .hero .amount{font-size:38px;font-weight:800;letter-spacing:-.02em;margin-top:1px;line-height:1.1}
-  .hero .meta{font-size:12px;opacity:.86;margin-top:2px}
-  .hero .track{height:8px;background:rgba(255,255,255,.3);border-radius:99px;margin-top:12px;overflow:hidden}
-  .hero .track > i{display:block;height:100%;background:#fff;border-radius:99px;width:0;transition:width .5s cubic-bezier(.2,.7,.2,1)}
-  .hero .door{
-    position:absolute;right:14px;top:14px;font-size:11.5px;font-weight:700;
-    background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.34);padding:6px 11px;border-radius:9px;
-  }
+  .prog:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:6px}
+  .prog .top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:7px}
+  .prog .pct{font-size:28px;font-weight:800;letter-spacing:-.025em;line-height:1}
+  .prog .pmeta{font-size:12px;color:var(--muted);text-align:right}
+  .prog .pmeta b{color:var(--accent);font-weight:750}
+  .hair{height:3px;border-radius:99px;background:var(--track);overflow:hidden}
+  .hair > i{display:block;height:100%;background:var(--accent);border-radius:99px;width:0;
+    transition:width .5s cubic-bezier(.2,.7,.2,1)}
+
   h2.section{font-size:14px;font-weight:700;margin:0;letter-spacing:-.01em}
   .label-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
-  .linkbtn{appearance:none;background:transparent;border:none;color:var(--accent);font:inherit;font-weight:700;font-size:12.5px;cursor:pointer;padding:0}
+  .linkbtn{appearance:none;background:transparent;border:none;color:var(--accent);font:inherit;
+    font-weight:700;font-size:12.5px;cursor:pointer;padding:0}
   .linkbtn:active{opacity:.7}
   .linkbtn.danger{color:var(--danger)}
+  .linkbtn:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:4px}
 
-  /* room tiles */
-  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .sec-row{display:flex;justify-content:space-between;align-items:center;margin:22px 0 10px}
+  .sec-lbl{font-size:12.5px;font-weight:750;letter-spacing:.01em}
+
+  /* floor filter — only rendered when a floor actually exists */
+  .floors{display:flex;gap:7px;overflow-x:auto;padding-bottom:11px;scrollbar-width:none}
+  .floors::-webkit-scrollbar{height:0}
+  .fchip2{
+    flex:none;font:inherit;font-size:12.5px;font-weight:650;padding:7px 13px;border-radius:99px;cursor:pointer;
+    background:transparent;border:1px solid var(--line);color:var(--muted);white-space:nowrap;
+  }
+  .fchip2.on{background:var(--accent);border-color:transparent;color:var(--accent-fg)}
+  .fchip2:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+  .fgroup + .fgroup{margin-top:20px}
+  .fname{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:9px}
+
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media (min-width:620px){ .tiles{grid-template-columns:repeat(3,1fr)} }
   .tile{
-    position:relative;border-radius:15px;overflow:hidden;height:158px;background:var(--sunk);
-    border:none;padding:0;cursor:pointer;display:block;width:100%;font:inherit;color:inherit;text-align:left;
+    appearance:none;border:none;background:transparent;padding:0;cursor:pointer;display:block;
+    width:100%;font:inherit;color:inherit;text-align:left;
   }
   .tile:active{transform:scale(.985)}
-  .tile:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-  .tile img.cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-  .tile .scrim{position:absolute;inset:0;background:linear-gradient(to top,rgba(6,20,19,.72) 0%,rgba(6,20,19,.2) 46%,rgba(6,20,19,0) 72%)}
-  .tile .txt{position:absolute;left:11px;right:11px;bottom:9px;color:#fff}
-  .tile .nm{display:block;font-size:15.5px;font-weight:700;letter-spacing:-.01em;text-shadow:0 1px 3px rgba(0,0,0,.45);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
-  .tile .ct{display:block;font-size:11.5px;opacity:.93;margin-top:1px;line-height:1.3}
-  .tile.blank .scrim{display:none}
-  .tile.blank .ltr{position:absolute;inset:0;display:grid;place-items:center;font-size:42px;font-weight:800;color:var(--muted);opacity:.45}
-  .tile.blank .nm,.tile.blank .ct{color:var(--text);text-shadow:none}
-  .ring{position:absolute;top:9px;right:9px;width:44px;height:44px}
-  .ring circle{fill:none;stroke-width:4.5}
-  .ring .bg{stroke:rgba(255,255,255,.36)}
-  .ring .fg{stroke:#fff;stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .5s cubic-bezier(.2,.7,.2,1)}
-  .ring text{fill:#fff;font-size:13px;font-weight:800;font-family:inherit}
-  .tile.blank .ring .bg{stroke:var(--muted);opacity:.4}
-  .tile.blank .ring text{fill:var(--muted)}
+  .tile:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:12px}
+  .tile .ph{display:block;position:relative;height:96px;border-radius:12px;overflow:hidden;background:var(--sunk)}
+  .tile .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .tile .bar{display:block;height:2.5px;border-radius:99px;background:var(--track);overflow:hidden;margin-top:8px}
+  .tile .bar > i{display:block;height:100%;background:var(--accent);border-radius:99px}
+  .tile .nm{display:block;font-size:13.5px;font-weight:700;letter-spacing:-.01em;margin-top:7px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile .ct{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
 
   /* checklist */
   .list{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
@@ -366,7 +371,6 @@
         </svg>
       </button>
       <button class="icon-btn accent hidden" id="authBtn">Sign in</button>
-      <a class="icon-btn square hidden" id="sheetLink" href="#" target="_blank" rel="noopener" title="Open Google Sheet" aria-label="Open Google Sheet">🔗</a>
       <button class="icon-btn square" id="settingsBtn" title="Settings" aria-label="Settings">⚙︎</button>
     </div>
   </header>
@@ -378,20 +382,19 @@
 
   <!-- HOME -->
   <section id="viewHome">
-    <button class="hero" id="heroBtn" type="button">
-      <span class="door">Board ›</span>
-      <span class="lbl">Overall Progress</span>
-      <div class="amount" id="overallPct">0%</div>
-      <div class="meta" id="overallMeta">No items yet</div>
-      <div class="track"><i id="overallBar" style="width:0%"></i></div>
+    <button class="prog" id="heroBtn" type="button">
+      <span class="top">
+        <span class="pct" id="overallPct">0%</span>
+        <span class="pmeta" id="overallMeta">No items yet</span>
+      </span>
+      <span class="hair"><i id="overallBar" style="width:0%"></i></span>
     </button>
-    <div class="card">
-      <div class="label-row">
-        <h2 class="section">Rooms</h2>
-        <button type="button" class="linkbtn" id="newRoomBtn">＋ New Room</button>
-      </div>
-      <div id="rooms"><div class="empty">No rooms yet</div></div>
+    <div class="sec-row">
+      <span class="sec-lbl">Rooms</span>
+      <button type="button" class="linkbtn" id="newRoomBtn">＋ New</button>
     </div>
+    <div class="floors hidden" id="floorChips"></div>
+    <div id="rooms"><div class="empty">No rooms yet</div></div>
   </section>
 
   <!-- ROOM -->
@@ -401,7 +404,7 @@
     <button class="btn" id="addItemBtn" type="button" style="margin-top:14px">＋ Add item</button>
     <div class="hint">Tap the circle to change status · tap the name to edit</div>
     <div class="label-row" style="margin-top:22px;justify-content:center;gap:20px">
-      <button class="linkbtn" id="roomRename">✎ Rename room</button>
+      <button class="linkbtn" id="roomRename">✎ Edit room</button>
       <button class="linkbtn danger" id="roomDelete">🗑 Delete room</button>
     </div>
   </section>
@@ -413,7 +416,6 @@
     <div class="hint">Drag a card between columns, or use ‹ › to move it</div>
   </section>
 
-  <div class="foot">Reads &amp; writes your Google Sheet and Drive directly — no server.</div>
 </div>
 
 <!-- Settings -->
@@ -452,6 +454,10 @@
       the link can open that photo. Fine for a home project — don't upload anything private.
     </div>
     <hr class="sep" />
+    <div class="field hidden" id="sheetLinkWrap" style="margin-top:14px">
+      <a id="sheetLink" href="#" target="_blank" rel="noopener" style="font-size:13px;font-weight:700">Open the Google Sheet ↗</a>
+    </div>
+
     <div class="field hidden" id="shareWrap">
       <label>Use this on another device</label>
       <div class="hintx" style="margin:0 0 8px">
@@ -584,6 +590,12 @@
       <label for="newRoomName">Room name</label>
       <input type="text" id="newRoomName" placeholder="e.g. Kitchen" />
     </div>
+    <div class="field" style="margin-top:12px">
+      <label for="newRoomFloor">Floor — optional</label>
+      <input type="text" id="newRoomFloor" list="floorList" placeholder="e.g. Ground floor" />
+      <datalist id="floorList"></datalist>
+      <div class="hintx">Type anything — “Ground floor”, “Upstairs”, “Annexe”. Rooms group by it on the home page.</div>
+    </div>
     <div class="err" id="newRoomErr"></div>
     <div class="row2">
       <button class="btn ghost" id="newRoomCancel" type="button">Cancel</button>
@@ -595,16 +607,20 @@
 <!-- Rename room -->
 <div class="modal-back" id="renameBack">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="renameTitle" style="max-width:400px">
-    <h3 id="renameTitle">Rename Room</h3>
-    <p>Renames the room's title in your sheet. Its items stay with it.</p>
+    <h3 id="renameTitle">Edit Room</h3>
+    <p>Changes the room's name and floor in your sheet. Its items stay with it.</p>
     <div class="field">
-      <label for="renameName">New name</label>
+      <label for="renameName">Room name</label>
       <input type="text" id="renameName" />
+    </div>
+    <div class="field" style="margin-top:12px">
+      <label for="renameFloor">Floor — optional</label>
+      <input type="text" id="renameFloor" list="floorList" placeholder="e.g. Ground floor" />
     </div>
     <div class="err" id="renameErr"></div>
     <div class="row2">
       <button class="btn ghost" id="renameCancel" type="button">Cancel</button>
-      <button class="btn" id="renameSave" type="button">Rename</button>
+      <button class="btn" id="renameSave" type="button">Save</button>
     </div>
   </div>
 </div>
@@ -627,7 +643,7 @@
 (function(){
   "use strict";
 
-  var LS_CLIENT="it_client_id", LS_SHEET="it_sheet_id", LS_TAB="it_tab", LS_TOKEN="it_token", LS_THEME="it_theme";
+  var LS_CLIENT="it_client_id", LS_SHEET="it_sheet_id", LS_TAB="it_tab", LS_TOKEN="it_token", LS_THEME="it_theme", LS_FLOOR="it_floor";
   var RENEW_BEFORE_MS=5*60*1000;   // start renewing this long before expiry
   var EXPIRY_MARGIN_S=120;         // treat the token as dead this early, to beat clock skew
   var POLL_MS=20000;
@@ -645,6 +661,8 @@
     signedIn:false,
     view:"home", room:null,
     filter:"__all__",
+    floors:{},                                       // room -> floor label ("" = unassigned)
+    floorFilter:(function(){ try{ return localStorage.getItem(LS_FLOOR)||"__all__"; }catch(e){ return "__all__"; } })(),
     doneLimit:DONE_PAGE, boardDoneLimit:DONE_PAGE,
     byId:{}, editing:null
   };
@@ -655,13 +673,13 @@
   ["wrap","headTitle","headLeft","syncSub","themeBtn","themeSegs","authBtn","sheetLink","settingsBtn","banner","bannerText","bannerAct",
    "viewHome","viewRoom","viewBoard","heroBtn","overallPct","overallMeta","overallBar","rooms","newRoomBtn",
    "roomList","roomShowMore","addItemBtn","roomRename","roomDelete","filters","cols",
-   "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","authState","signOutBtn","authNote","shareWrap","shareLink","copyShareBtn","shareNote","saveSettings","cancelSettings",
+   "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","sheetLinkWrap","authState","signOutBtn","authNote","shareWrap","shareLink","copyShareBtn","shareNote","saveSettings","cancelSettings",
    "taskBack","taskTitle","taskSubtitle","taskRoom","taskNewRoom","taskTitleInput","taskSegs","taskDesc","taskVideo",
    "videoField","vidPrev","toggleVideoBtn","optBox","optSub","prevWrap","photoPrevImg","prevLabel","pickGalleryBtn","pickCameraBtn",
    "removePhotoBtn","fileGallery","fileCamera","upBar","upBarFill","taskErr","taskSave","taskCancel","taskDelete","taskDeleteRow",
    "lightbox","lbClose","lbImg","lbCap","lbOpen","lbFail","confirmBack","confirmMsg","confirmYes","confirmNo",
-   "newRoomBack","newRoomName","newRoomErr","newRoomCreate","newRoomCancel",
-   "renameBack","renameName","renameErr","renameSave","renameCancel",
+   "newRoomBack","newRoomName","newRoomFloor","floorList","floorChips","newRoomErr","newRoomCreate","newRoomCancel",
+   "renameBack","renameName","renameFloor","renameErr","renameSave","renameCancel",
    "delRoomBack","delRoomMsg","delRoomMoveWrap","delRoomTarget","delRoomErr","delRoomActions"
   ].forEach(function(k){ els[k]=$(k); });
 
@@ -801,7 +819,7 @@
     return lc(rowArr[c+1])==="description" || lc(rowArr[c+2])==="status";
   }
   function parseGrid(grid){
-    var blocks={}, titles=[], tasks=[];
+    var blocks={}, titles=[], tasks=[], floors={};
     for(var r=0;r<grid.length;r++){
       var rowArr=grid[r]||[];
       for(var c=0;c<rowArr.length;c++){
@@ -828,11 +846,16 @@
             lastDataRow=rr;
           }
         }
-        blocks[room]={titleCol:titleCol,lastCol:lastCol,updCol:updCol,headerRow:headerRow,titleRow:titleRow,lastDataRow:lastDataRow};
+        // The floor sits immediately right of the room name, on the title row. That cell is
+        // inside the table's own columns and otherwise unused, so nothing shifts.
+        var floor=(titleRow!=null)?trimStr(grid[titleRow]&&grid[titleRow][titleCol+1]):"";
+        blocks[room]={titleCol:titleCol,lastCol:lastCol,updCol:updCol,headerRow:headerRow,
+          titleRow:titleRow,lastDataRow:lastDataRow,floor:floor};
+        floors[room]=floor;
         titles.push(room);
       }
     }
-    return {blocks:blocks, titles:titles, tasks:tasks};
+    return {blocks:blocks, titles:titles, tasks:tasks, floors:floors};
   }
 
   /* --------- sorting: most recently changed first --------- */
@@ -872,9 +895,9 @@
     var p=pct(done,list.length);
     els.overallPct.textContent=p+"%";
     els.overallBar.style.width=p+"%";
-    els.overallMeta.textContent=list.length
-      ? (done+" of "+list.length+" "+(list.length===1?"item":"items")+" done · "+state.rooms.length+" "+(state.rooms.length===1?"room":"rooms"))
-      : "No items yet";
+    els.overallMeta.innerHTML=list.length
+      ? (done+" of "+list.length+" done &nbsp;·&nbsp; <b>Board ›</b>")
+      : "No items yet &nbsp;·&nbsp; <b>Board ›</b>";
   }
 
   // Room cover = the most recently updated item in that room that has a photo.
@@ -883,27 +906,82 @@
     if(!withImg.length) return "";
     return byRecent(withImg)[0].image;
   }
-  var RC=2*Math.PI*18;
+  function floorOf(room){ return trimStr(state.floors[room]||""); }
+  function floorList(){
+    var seen={}, out=[];
+    state.rooms.forEach(function(r){
+      var f=floorOf(r);
+      if(f && !seen[normName(f)]){ seen[normName(f)]=1; out.push(f); }
+    });
+    return out;
+  }
+  function setFloorFilter(v){
+    state.floorFilter=v;
+    try{ if(v==="__all__") localStorage.removeItem(LS_FLOOR); else localStorage.setItem(LS_FLOOR,v); }catch(e){}
+  }
+
+  function tileHTML(rm){
+    var ts=roomTasks(rm), done=0;
+    ts.forEach(function(t){ if(t.status==="Done") done++; });
+    var p=pct(done,ts.length), cover=roomCover(rm);
+    return '<button class="tile" type="button" data-room="'+esc(rm)+'">'
+      + '<span class="ph">'
+      +   (cover?'<img src="'+esc(imgSrc(cover))+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" />':'')
+      + '</span>'
+      + '<span class="bar"><i style="width:'+p+'%"></i></span>'
+      + '<span class="nm">'+esc(rm)+'</span>'
+      + '<span class="ct">'+done+' of '+ts.length+'</span>'
+      + '</button>';
+  }
   function renderRooms(){
     var rooms=state.rooms.slice();
     allTasks().forEach(function(t){ if(rooms.indexOf(t.room)===-1) rooms.push(t.room); });
-    if(!rooms.length){ els.rooms.innerHTML='<div class="empty">No rooms yet — tap ＋ New Room</div>'; return; }
-    els.rooms.innerHTML='<div class="tiles">'+rooms.map(function(rm){
-      var ts=roomTasks(rm), done=0;
-      ts.forEach(function(t){ if(t.status==="Done") done++; });
-      var p=pct(done,ts.length), cover=roomCover(rm);
-      var ring='<svg class="ring" viewBox="0 0 44 44" aria-hidden="true"><circle class="bg" cx="22" cy="22" r="18"/>'
-        +'<circle class="fg" cx="22" cy="22" r="18" stroke-dasharray="'+RC+'" stroke-dashoffset="'+(RC*(1-p/100))+'"/>'
-        +'<text x="22" y="26.5" text-anchor="middle">'+p+'</text></svg>';
-      return '<button class="tile'+(cover?"":" blank")+'" type="button" data-room="'+esc(rm)+'">'
-        + (cover?'<img class="cover" src="'+esc(imgSrc(cover))+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" /><span class="scrim"></span>'
-                :'<span class="ltr">'+esc(rm.charAt(0).toUpperCase())+'</span>')
-        + ring
-        + '<span class="txt"><span class="nm">'+esc(rm)+'</span><span class="ct">'+done+' of '+ts.length+' done</span></span>'
-        + '</button>';
-    }).join('')+'</div>';
-  }
+    if(!rooms.length){
+      els.floorChips.classList.add("hidden");
+      els.rooms.innerHTML='<div class="empty">No rooms yet — tap ＋ New</div>';
+      return;
+    }
 
+    // The filter only exists once a floor does — no chrome for anyone not using floors.
+    var fl=floorList(), anyUnassigned=rooms.some(function(r){ return !floorOf(r); });
+    if(!fl.length){
+      els.floorChips.classList.add("hidden");
+    } else {
+      if(state.floorFilter!=="__all__" && state.floorFilter!=="__none__"
+         && !fl.some(function(f){ return normName(f)===normName(state.floorFilter); })) setFloorFilter("__all__");
+      var chips=[{v:"__all__",n:"All"}].concat(fl.map(function(f){ return {v:f,n:f}; }));
+      if(anyUnassigned) chips.push({v:"__none__",n:"No floor"});
+      els.floorChips.innerHTML=chips.map(function(o){
+        return '<button class="fchip2'+(o.v===state.floorFilter?" on":"")+'" type="button" data-floor="'+esc(o.v)+'">'+esc(o.n)+'</button>';
+      }).join('');
+      els.floorChips.classList.remove("hidden");
+    }
+
+    var vis=rooms.filter(function(r){
+      if(state.floorFilter==="__all__") return true;
+      if(state.floorFilter==="__none__") return !floorOf(r);
+      return normName(floorOf(r))===normName(state.floorFilter);
+    });
+    if(!vis.length){ els.rooms.innerHTML='<div class="empty">No rooms on this floor</div>'; return; }
+
+    // Grouped under "All" so you can still see the whole house at once; a chosen floor
+    // is already one group, so no heading is needed.
+    if(state.floorFilter==="__all__" && fl.length){
+      var html="";
+      fl.forEach(function(f){
+        var inF=vis.filter(function(r){ return normName(floorOf(r))===normName(f); });
+        if(!inF.length) return;
+        html+='<div class="fgroup"><div class="fname">'+esc(f)+'</div>'
+             +'<div class="tiles">'+inF.map(tileHTML).join('')+'</div></div>';
+      });
+      var none=vis.filter(function(r){ return !floorOf(r); });
+      if(none.length) html+='<div class="fgroup"><div class="fname">No floor</div>'
+             +'<div class="tiles">'+none.map(tileHTML).join('')+'</div></div>';
+      els.rooms.innerHTML=html;
+      return;
+    }
+    els.rooms.innerHTML='<div class="tiles">'+vis.map(tileHTML).join('')+'</div>';
+  }
   function rowHTML(t){
     var canAct=!t._pending&&t.row, id=canAct?taskId(t):"";
     var med=medHTML(t,"med");
@@ -1167,8 +1245,8 @@
   function updateStatus(){
     if(state.sheetId){
       els.sheetLink.href="https://docs.google.com/spreadsheets/d/"+encodeURIComponent(state.sheetId)+"/edit";
-      els.sheetLink.classList.remove("hidden");
-    } else els.sheetLink.classList.add("hidden");
+      els.sheetLinkWrap.classList.remove("hidden");
+    } else els.sheetLinkWrap.classList.add("hidden");
     if(!configured()){
       if(state.view==="home") els.syncSub.textContent="Not connected — tap ⚙︎";
       els.authBtn.classList.add("hidden"); els.addItemBtn.disabled=true; return;
@@ -1190,7 +1268,7 @@
     if(!state.signedIn)return Promise.resolve(false);
     return readGrid().then(function(grid){
       var p=parseGrid(grid);
-      state.blocks=p.blocks; state.rooms=p.titles; state.tasks=p.tasks;
+      state.blocks=p.blocks; state.rooms=p.titles; state.tasks=p.tasks; state.floors=p.floors;
       reconcilePending(); renderAll();
       if(state.view==="home"){
         var t=new Date().toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
@@ -1287,7 +1365,7 @@
     if(block && block.updCol!=null) out.push(v.updated||nowStamp());
     return out;
   }
-  function createRoom(name){
+  function createRoom(name,floor){
     return readGrid().then(function(grid){
       var p=parseGrid(grid);
       if(p.titles.some(function(t){return normName(t)===normName(name);}))
@@ -1305,21 +1383,25 @@
         return gapi.client.sheets.spreadsheets.values.batchUpdate({
           spreadsheetId:state.sheetId,
           resource:{ valueInputOption:"RAW", data:[
-            { range:q(state.tab)+"!"+colA1(newCol)+(titleRow0+1), values:[[ name ]] },
+            { range:q(state.tab)+"!"+colA1(newCol)+(titleRow0+1)+":"+colA1(newCol+1)+(titleRow0+1),
+              values:[[ name, trimStr(floor||"") ]] },
             { range:q(state.tab)+"!"+colA1(newCol)+(headerRow0+1)+":"+colA1(newCol+5)+(headerRow0+1), values:[ HEADERS ] }
           ]}
         });
       });
     });
   }
-  function renameRoom(oldName,newName){
+  function editRoom(oldName,newName,floor){
     return readGrid().then(function(grid){
       var p=parseGrid(grid), b=p.blocks[oldName];
       if(!b) throw new Error("Room '"+oldName+"' not found");
       var trow=(b.titleRow!=null)?b.titleRow:Math.max(0,b.headerRow-1);
-      return gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId:state.sheetId, range:q(state.tab)+"!"+colA1(b.titleCol)+(trow+1),
-        valueInputOption:"RAW", resource:{ values:[[ newName ]] }
+      return ensureGrid(b.titleCol+1,trow).then(function(){
+        return gapi.client.sheets.spreadsheets.values.update({
+          spreadsheetId:state.sheetId,
+          range:q(state.tab)+"!"+colA1(b.titleCol)+(trow+1)+":"+colA1(b.titleCol+1)+(trow+1),
+          valueInputOption:"RAW", resource:{ values:[[ newName, trimStr(floor||"") ]] }
+        });
       });
     });
   }
@@ -1544,6 +1626,10 @@
 
   els.rooms.addEventListener("click",function(e){
     var t=e.target.closest(".tile"); if(t) go("room",t.getAttribute("data-room"));
+  });
+  els.floorChips.addEventListener("click",function(e){
+    var c=e.target.closest(".fchip2"); if(!c)return;
+    setFloorFilter(c.getAttribute("data-floor")); renderRooms();
   });
   els.heroBtn.addEventListener("click",function(){ go("board"); });
 
@@ -1838,23 +1924,29 @@
 
   /* ---------------- rooms ---------------- */
   var newRoomCb=null;
+  function fillFloorList(){
+    els.floorList.innerHTML=floorList().map(function(f){ return '<option value="'+esc(f)+'"></option>'; }).join('');
+  }
   function openNewRoom(cb){
     if(needsAuth())return;
-    newRoomCb=cb||null; els.newRoomName.value=""; els.newRoomErr.textContent="";
+    newRoomCb=cb||null; els.newRoomName.value=""; els.newRoomFloor.value=""; els.newRoomErr.textContent="";
+    fillFloorList();
     els.newRoomBack.classList.add("open"); els.newRoomName.focus();
   }
   function closeNewRoom(){ els.newRoomBack.classList.remove("open"); newRoomCb=null; }
   els.newRoomBtn.addEventListener("click",function(){ openNewRoom(function(name){ go("room",name); }); });
   els.newRoomCancel.addEventListener("click",closeNewRoom);
   els.newRoomBack.addEventListener("click",function(e){ if(e.target===els.newRoomBack)closeNewRoom(); });
-  els.newRoomName.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();els.newRoomCreate.click();} });
+  els.newRoomName.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();els.newRoomFloor.focus();} });
+  els.newRoomFloor.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();els.newRoomCreate.click();} });
   els.newRoomCreate.addEventListener("click",function(){
     var name=els.newRoomName.value.trim();
     if(!name){ els.newRoomErr.textContent="Enter a room name."; return; }
     if(state.rooms.some(function(r){return normName(r)===normName(name);})){ els.newRoomErr.textContent="That room already exists."; return; }
     els.newRoomErr.textContent=""; els.newRoomCreate.disabled=true;
     els.newRoomCreate.innerHTML='<span class="spin"></span>Creating…';
-    ensureToken(false).then(function(){ return createRoom(name); }).then(function(){ return refresh(); })
+    var floor=els.newRoomFloor.value.trim();
+    ensureToken(false).then(function(){ return createRoom(name,floor); }).then(function(){ return refresh(); })
       .then(function(){ var cb=newRoomCb; closeNewRoom(); if(cb) cb(name); banner("Room '"+esc(name)+"' created.","info"); })
       .catch(function(err){ els.newRoomErr.textContent=apiMsg(err,"Could not create room"); })
       .then(function(){ els.newRoomCreate.disabled=false; els.newRoomCreate.textContent="Create"; });
@@ -1863,24 +1955,29 @@
   var renaming=null;
   function openRename(room){
     if(!room||needsAuth())return;
-    renaming=room; els.renameName.value=room; els.renameErr.textContent="";
+    renaming=room; els.renameName.value=room; els.renameFloor.value=floorOf(room);
+    els.renameErr.textContent=""; fillFloorList();
     els.renameBack.classList.add("open"); els.renameName.focus(); els.renameName.select();
   }
   function closeRename(){ els.renameBack.classList.remove("open"); renaming=null; }
   els.renameCancel.addEventListener("click",closeRename);
   els.renameBack.addEventListener("click",function(e){ if(e.target===els.renameBack)closeRename(); });
-  els.renameName.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();els.renameSave.click();} });
+  els.renameName.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();els.renameFloor.focus();} });
+  els.renameFloor.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();els.renameSave.click();} });
   els.renameSave.addEventListener("click",function(){
     var oldName=renaming; if(!oldName)return;
-    var name=els.renameName.value.trim();
+    var name=els.renameName.value.trim(), floor=els.renameFloor.value.trim();
     if(!name){ els.renameErr.textContent="Enter a name."; return; }
-    if(normName(name)===normName(oldName)){ closeRename(); return; }
-    if(state.rooms.some(function(r){return r!==oldName&&normName(r)===normName(name);})){ els.renameErr.textContent="That room already exists."; return; }
-    els.renameErr.textContent=""; els.renameSave.disabled=true; els.renameSave.innerHTML='<span class="spin"></span>Renaming…';
-    ensureToken(false).then(function(){ return renameRoom(oldName,name); }).then(function(){ return refresh(); })
-      .then(function(){ closeRename(); go("room",name); banner("Renamed to '"+esc(name)+"'.","info"); })
-      .catch(function(err){ els.renameErr.textContent=apiMsg(err,"Could not rename"); })
-      .then(function(){ els.renameSave.disabled=false; els.renameSave.textContent="Rename"; });
+    if(normName(name)!==normName(oldName)
+       && state.rooms.some(function(r){return r!==oldName&&normName(r)===normName(name);})){
+      els.renameErr.textContent="That room already exists."; return;
+    }
+    if(normName(name)===normName(oldName) && floor===floorOf(oldName)){ closeRename(); return; }
+    els.renameErr.textContent=""; els.renameSave.disabled=true; els.renameSave.innerHTML='<span class="spin"></span>Saving…';
+    ensureToken(false).then(function(){ return editRoom(oldName,name,floor); }).then(function(){ return refresh(); })
+      .then(function(){ closeRename(); go("room",name); banner("Room updated.","info"); })
+      .catch(function(err){ els.renameErr.textContent=apiMsg(err,"Could not save"); })
+      .then(function(){ els.renameSave.disabled=false; els.renameSave.textContent="Save"; });
   });
 
   var delRoom=null;
