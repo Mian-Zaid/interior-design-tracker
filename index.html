@@ -355,6 +355,20 @@
       the link can open that photo. Fine for a home project — don't upload anything private.
     </div>
     <hr class="sep" />
+    <div class="field hidden" id="shareWrap">
+      <label>Use this on another device</label>
+      <div class="hintx" style="margin:0 0 8px">
+        Send this link to the other phone. It fills in these settings — they still sign in
+        with their own Google account, and they need edit access to the sheet.
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="shareLink" readonly style="font-size:12px" />
+        <button class="minibtn" id="copyShareBtn" type="button" style="flex:none">Copy</button>
+      </div>
+      <div class="hintx" id="shareNote" style="min-height:14px"></div>
+    </div>
+
+    <hr class="sep" />
     <button class="btn" id="connectBtn" type="button" style="background:#fff;color:#3c4043;border:1px solid var(--line)">
       <span id="connectBtnText">Sign in with Google</span>
     </button>
@@ -530,7 +544,7 @@
   ["wrap","headTitle","headLeft","syncSub","authBtn","sheetLink","settingsBtn","banner","bannerText","bannerAct",
    "viewHome","viewRoom","viewBoard","heroBtn","overallPct","overallMeta","overallBar","rooms","newRoomBtn",
    "roomList","roomShowMore","addItemBtn","roomRename","roomDelete","filters","cols",
-   "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","authState","signOutBtn","authNote","saveSettings","cancelSettings",
+   "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","authState","signOutBtn","authNote","shareWrap","shareLink","copyShareBtn","shareNote","saveSettings","cancelSettings",
    "taskBack","taskTitle","taskSubtitle","taskRoom","taskNewRoom","taskTitleInput","taskSegs","taskDesc","taskVideo",
    "videoField","toggleVideoBtn","optBox","optSub","prevWrap","photoPrevImg","prevLabel","pickGalleryBtn","pickCameraBtn",
    "removePhotoBtn","fileGallery","fileCamera","upBar","upBarFill","taskErr","taskSave","taskCancel","taskDelete","taskDeleteRow",
@@ -793,8 +807,63 @@
     var h = view==="home" ? "#/" : (view==="board" ? "#/board" : "#/room/"+encodeURIComponent(room));
     if(location.hash!==h) location.hash=h; else applyView();
   }
+  /* A setup link carries only the Client ID, Sheet ID and tab name — never a token.
+     None of those are secrets: the Client ID is public by design, and the Sheet ID is
+     useless without Google-side edit access. It saves the second person typing a
+     72-character Client ID on a phone. */
+  function setupLink(){
+    return location.origin+location.pathname
+      +"#/setup?c="+encodeURIComponent(state.clientId)
+      +"&s="+encodeURIComponent(state.sheetId)
+      +"&t="+encodeURIComponent(state.tab);
+  }
+  function parseQuery(q){
+    var out={};
+    String(q||"").split("&").forEach(function(kv){
+      if(!kv)return;
+      var i=kv.indexOf("="), k=i<0?kv:kv.slice(0,i), v=i<0?"":kv.slice(i+1);
+      try{ out[decodeURIComponent(k)]=decodeURIComponent(v.replace(/\+/g," ")); }catch(e){}
+    });
+    return out;
+  }
+  function applySetupLink(query){
+    var q=parseQuery(query);
+    var cid=trimStr(q.c), sid=parseSheetId(q.s||""), tab=trimStr(q.t)||"Interior";
+    if(!cid||!sid){ banner("That setup link is incomplete — ask for it again.","warn"); return false; }
+    // A different sheet or project means the stored token is for the wrong thing.
+    if(cid!==state.clientId) forgetToken();
+    state.clientId=cid; state.sheetId=sid; state.tab=tab;
+    try{
+      localStorage.setItem(LS_CLIENT,cid);
+      localStorage.setItem(LS_SHEET,sid);
+      localStorage.setItem(LS_TAB,tab);
+    }catch(e){}
+    return true;
+  }
+  var setupHandled=false;   // a setup link drives its own connect; init must not stomp it
   function readHash(){
     var h=location.hash||"#/";
+    if(h.indexOf("#/setup?")===0){
+      setupHandled=true;
+      var okSetup=applySetupLink(h.slice(8));
+      // Drop it from the URL and from history — no reason to keep the sheet id in the bar.
+      if(history.replaceState) history.replaceState(null,"",location.pathname+location.search+"#/");
+      else location.hash="#/";
+      state.view="home"; state.room=null; applyView();
+      if(okSetup){
+        openModal();
+        banner("Settings received — connecting…","info");
+        connect(false).then(function(){
+          closeModal();
+          banner("Connected. This device is on the same list now.","info");
+        }).catch(function(){
+          // connect() already set its own banner; replace it with something actionable
+          banner("Settings received. Tap “Sign in with Google” to connect this device.","info",
+            "Sign in",function(){ connect(true); });
+        });
+      }
+      return;
+    }
     if(h.indexOf("#/room/")===0){ state.view="room"; state.room=decodeURIComponent(h.slice(7)); }
     else if(h==="#/board"){ state.view="board"; state.room=null; }
     else { state.view="home"; state.room=null; }
@@ -1570,9 +1639,29 @@
     els.clientIdInput.value=state.clientId; els.sheetInput.value=state.sheetId; els.tabInput.value=state.tab;
     els.authState.textContent=state.signedIn?"Signed in ✓":"Not signed in.";
     els.signOutBtn.classList.toggle("hidden",!state.signedIn);
+    refreshShare();
     els.modalBack.classList.add("open");
   }
   function closeModal(){ els.modalBack.classList.remove("open"); }
+  function refreshShare(){
+    var ready=configured();
+    els.shareWrap.classList.toggle("hidden",!ready);
+    els.shareNote.textContent="";
+    if(ready) els.shareLink.value=setupLink();
+  }
+  els.copyShareBtn.addEventListener("click",function(){
+    els.shareLink.focus(); els.shareLink.select();
+    var done=function(){ els.shareNote.textContent="Copied — send it to the other phone."; };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(els.shareLink.value).then(done,function(){
+        els.shareNote.textContent="Couldn't copy automatically — the link is selected, copy it manually.";
+      });
+    } else {
+      // older mobile browsers, and any non-secure origin
+      var okExec=false; try{ okExec=document.execCommand("copy"); }catch(e){}
+      if(okExec) done(); else els.shareNote.textContent="The link is selected — copy it manually.";
+    }
+  });
   els.settingsBtn.addEventListener("click",openModal);
   els.authBtn.addEventListener("click",function(){connect(true);});
   els.cancelSettings.addEventListener("click",closeModal);
@@ -1588,7 +1677,7 @@
     localStorage.setItem(LS_TAB,state.tab);
   }
   els.saveSettings.addEventListener("click",function(){
-    persistSettings(); renderAll(); updateStatus(); closeModal();
+    persistSettings(); refreshShare(); renderAll(); updateStatus(); closeModal();
     if(configured()){ banner("Connecting…","info"); connect(state.signedIn?false:true); }
   });
   els.signOutBtn.addEventListener("click",function(){
@@ -1633,8 +1722,10 @@
 
   /* ---------------- init ---------------- */
   readHash();
-  if(configured()){ banner("Connecting…","info"); connect(false).catch(function(){}); }
-  else banner("Welcome! Tap ⚙︎ to connect your Google Sheet.","info","Setup",openModal);
+  if(!setupHandled){
+    if(configured()){ banner("Connecting…","info"); connect(false).catch(function(){}); }
+    else banner("Welcome! Tap ⚙︎ to connect your Google Sheet.","info","Setup",openModal);
+  }
 })();
 </script>
 </body>

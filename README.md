@@ -19,6 +19,8 @@ No server, no Apps Script, no build step. It's one self-contained `index.html`.
 - ✎ Edit, 🗑 delete, 🔀 move items between rooms — destructive actions confirmed
 - ➕ Create / rename / delete rooms — deleting never orphans items
 - ⚡ Optimistic updates + 20-second polling to stay in sync across devices
+- 👥 **Two people, two devices, one list** — share the sheet, send a setup link, each signs
+  in with their own Google account
 - 🔐 Signs in with **your** Google account — data never leaves your Sheet and Drive
 - 🔓 **Stays signed in.** Reloading the page never asks again; the session is renewed
   silently in the background, with a **Sign out** in ⚙ settings
@@ -194,6 +196,57 @@ both a photo and a video, the photo shows with a ▶ badge. Nothing is embedded 
 
 ---
 
+## Sharing with a second person
+
+Two (or more) people can use the same list from their own phones and their own Google
+accounts. There's no shared password and no second copy of the data — everyone reads and
+writes the same sheet, and the 20-second polling means a change shows up on the other device
+within about half a minute.
+
+**Three things have to be true.** Do them once:
+
+### 1. Give them edit access to the Sheet
+
+Open the Sheet in Google Sheets → **Share** → add their Google account as **Editor**.
+This is what actually authorises their writes. Without it they get "Access denied (403)".
+
+### 2. Add them as a Test user on the OAuth consent screen
+
+[Google Auth Platform → Audience](https://console.cloud.google.com/auth/audience) → **Test
+users** → **Add users** → their Google address.
+
+This one is easy to miss. The consent screen is in **Testing** mode, which allows up to 100
+test users; anyone not on that list gets *"Access blocked: this app has not completed
+verification"* no matter how the sheet is shared.
+
+> **Why not publish the app instead?** The `.../auth/spreadsheets` scope is classed as
+> **sensitive** by Google, so leaving Testing would mean going through app verification. For
+> a household, adding a test user is the right answer.
+
+### 3. Send them a setup link
+
+In ⚙ settings on the device that already works, use **Use this on another device** →
+**Copy**, and send them the link however you like. Opening it on their phone fills in the
+Client ID, Sheet ID and tab name — no typing a 72-character Client ID on a phone keyboard —
+and prompts them to sign in with **their own** Google account.
+
+The link contains only those three settings, **never a sign-in token**. None of them are
+secrets: the Client ID is public by design, and the Sheet ID is useless to anyone you haven't
+given access in step 1.
+
+### What to expect once you're both in
+
+- Everyone sees the same rooms, items and statuses.
+- **Photos work across accounts.** They upload to the uploader's own Drive and are marked
+  link-viewable so others can see them. The flip side: if the uploader deletes the file from
+  their Drive, it disappears for everyone.
+- **Simultaneous edits are safe.** Every write re-checks the row first, so if you both change
+  the same item at once the slower one is refused with "Row changed — refresh and try again"
+  rather than silently overwriting.
+- Sign-in and other settings are per-device.
+
+---
+
 ## Staying signed in
 
 Once you've signed in, **reloading the page doesn't ask again.** The app keeps your access
@@ -321,6 +374,10 @@ Settings are stored per-browser, so enter them once on each device.
   your browser is likely clearing site data on close, or blocking storage for the origin.
 - **Signed in on one device but not another:** expected. Sign-in is per-browser, like the
   settings.
+- **The other person gets "Access blocked: app has not completed verification":** they're
+  not on the **Test users** list — see [Sharing with a second person](#sharing-with-a-second-person).
+- **The other person gets 403 but can sign in:** they have consent but not **Editor** access
+  to the Sheet itself. Both are needed.
 - **Privacy:** the app runs entirely in your browser and only ever contacts Google's own
   APIs. Your Client ID, Sheet ID, and tab name live in `localStorage`; access tokens live
   only in memory and expire automatically.
