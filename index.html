@@ -311,6 +311,23 @@
   }
   .shot.up .sv{opacity:.45}
   .shot.up .sv img{filter:grayscale(.4)}
+  /* video links — one row per link, each with its own preview */
+  .vrow + .vrow{margin-top:13px;padding-top:13px;border-top:1px dashed var(--line)}
+  .vtop{display:flex;gap:8px;align-items:center}
+  .vtop .vurl{flex:1;min-width:0}
+  .vx{
+    appearance:none;flex:none;width:40px;height:40px;border-radius:11px;padding:0;cursor:pointer;
+    border:1px solid var(--line);background:var(--card);color:var(--danger);font-size:13px;
+    display:grid;place-items:center;
+  }
+  .vx:active{transform:scale(.94)}
+  .vx:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .showprev{
+    display:block;width:100%;padding:14px;border:none;border-bottom:1px solid var(--line);
+    background:transparent;color:var(--muted);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
+  }
+  .showprev:active{background:var(--track)}
+  .showprev:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
   /* video preview */
   .vidcard{margin-top:10px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--sunk)}
   .vidcard .frame{position:relative;width:100%;background:#0b1615;display:block}
@@ -580,9 +597,9 @@
         <input type="file" id="fileCamera" accept="image/*" capture="environment" class="hidden" />
       </div>
       <div class="field full hidden" id="videoField">
-        <label for="taskVideo">Video link</label>
-        <input type="url" id="taskVideo" placeholder="Paste a Reel, YouTube or Drive link…" />
-        <div id="vidPrev"></div>
+        <label>Video links</label>
+        <div id="vidRows"></div>
+        <button type="button" class="linkbtn" id="addVidBtn" style="align-self:flex-start">＋ Another link</button>
       </div>
       <div class="field full">
         <label for="taskDesc">Notes — optional</label>
@@ -722,8 +739,8 @@
    "viewHome","viewRoom","viewBoard","heroBtn","overallPct","overallMeta","overallBar","rooms","newRoomBtn",
    "roomList","roomShowMore","addItemBtn","roomRename","roomDelete","filters","cols",
    "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","sheetLinkWrap","authState","signOutBtn","authNote","shareWrap","shareLink","copyShareBtn","shareNote","saveSettings","cancelSettings",
-   "taskBack","taskTitle","taskSubtitle","taskRoom","taskNewRoom","taskTitleInput","taskSegs","taskDesc","taskVideo",
-   "videoField","vidPrev","toggleVideoBtn","optBox","optSub","prevWrap","shotStrip","prevLabel","pickGalleryBtn","pickCameraBtn",
+   "taskBack","taskTitle","taskSubtitle","taskRoom","taskNewRoom","taskTitleInput","taskSegs","taskDesc",
+   "videoField","vidRows","addVidBtn","toggleVideoBtn","optBox","optSub","prevWrap","shotStrip","prevLabel","pickGalleryBtn","pickCameraBtn",
    "removePhotoBtn","fileGallery","fileCamera","upBar","upBarFill","taskErr","taskSave","taskCancel","taskDelete","taskDeleteRow",
    "lightbox","lbClose","lbImg","lbCap","lbOpen","lbFail","lbStage","lbPrevBtn","lbNextBtn","lbDots","lbCount",
    "confirmBack","confirmMsg","confirmYes","confirmNo",
@@ -774,19 +791,20 @@
     return m?m[1]:"";
   }
   function safeUrl(u){u=trimStr(u);return /^https?:\/\//i.test(u)?u:"";}
-  /* An item can carry several photos. They live in the one Image URL cell, whitespace
-     separated — a URL can't contain a space, so splitting is unambiguous, and a sheet that
-     only ever held a single URL parses as a list of one. No new column, no migration. */
-  function imgList(s){
+  /* An item can carry several photos and several video links. Each kind lives in its own
+     existing cell (Image URL / Video URL), whitespace separated — a URL can't contain a
+     space, so splitting is unambiguous, and a sheet that only ever held a single URL parses
+     as a list of one. No new columns, no migration. */
+  function urlList(s){
     var out=[];
     trimStr(s).split(/\s+/).forEach(function(u){
       u=safeUrl(u); if(u && out.indexOf(u)===-1) out.push(u);
     });
     return out;
   }
-  // Newlines rather than spaces so a cell with several photos stays readable in Sheets.
-  function imgJoin(list){ return (list||[]).join("\n"); }
-  function firstImg(s){ return imgList(s)[0]||""; }
+  // Newlines rather than spaces so a cell with several links stays readable in Sheets.
+  function urlJoin(list){ return (list||[]).join("\n"); }
+  function firstUrl(s){ return urlList(s)[0]||""; }
   function hostOf(u){ try{ return new URL(u).hostname.replace(/^www\./,""); }catch(e){ return "link"; } }
 
   /* --------- video links ---------
@@ -936,7 +954,8 @@
   function roomTasks(room){return allTasks().filter(function(t){return t.room===room;});}
 
   function medHTML(t,cls){
-    var imgs=imgList(t.image), img=imgs[0]||"", v=videoInfo(t.video);
+    var imgs=urlList(t.image), img=imgs[0]||"";
+    var vids=urlList(t.video), v=videoInfo(vids[0]||"");
     // Photo → in-app viewer. Video → a real <a>, never window.open: a genuine top-level
     // navigation is what lets iOS Universal Links / Android App Links hand off to the
     // installed app. window.open lands in a browser tab instead.
@@ -948,10 +967,16 @@
       +'<img src="'+esc(imgSrc(img))+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" />'
       +(imgs.length>1?'<span class="cnt">'+imgs.length+'</span>':'')
       +(v?'<span class="play">▶</span>':'')+'</button>';
+    // Several videos still link straight to the first: turning the tile into a chooser
+    // would make it a <button>, and the app handoff only happens on a real anchor. The
+    // badge says there are more, and the item's editor lists them all.
     if(v) return '<a class="'+cls+' vidonly plat-'+esc(v.kind)+'" href="'+esc(v.url)+'" '
-      +'target="_blank" rel="noopener" title="Open in '+esc(v.label)+'" aria-label="Open in '+esc(v.label)+'">'
+      +'target="_blank" rel="noopener" title="Open in '+esc(v.label)
+      +(vids.length>1?(' ('+vids.length+' links on this item)'):'')+'" '
+      +'aria-label="Open in '+esc(v.label)+(vids.length>1?(', 1 of '+vids.length+' links'):'')+'">'
       +(v.thumb?'<img src="'+esc(v.thumb)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" />':'')
-      +'<span class="play">▶</span></a>';
+      +'<span class="play">▶</span>'
+      +(vids.length>1?'<span class="cnt">'+vids.length+'</span>':'')+'</a>';
     return "";
   }
 
@@ -968,9 +993,9 @@
 
   // Room cover = the first photo of the most recently updated item in that room that has one.
   function roomCover(room){
-    var withImg=roomTasks(room).filter(function(t){return firstImg(t.image);});
+    var withImg=roomTasks(room).filter(function(t){return firstUrl(t.image);});
     if(!withImg.length) return "";
-    return firstImg(byRecent(withImg)[0].image);
+    return firstUrl(byRecent(withImg)[0].image);
   }
   function floorOf(room){ return trimStr(state.floors[room]||""); }
   function floorList(){
@@ -1693,7 +1718,7 @@
   // Accepts a single URL, a whitespace-separated list, or an array. startAt picks which one
   // opens first; srcOverride previews a local file that has no URL yet.
   function openLightbox(urls,caption,srcOverride,startAt){
-    var list=Array.isArray(urls)?urls.map(safeUrl).filter(Boolean):imgList(urls);
+    var list=Array.isArray(urls)?urls.map(safeUrl).filter(Boolean):urlList(urls);
     if(!list.length && !srcOverride) return;
     lbSet=list; lbIdx=Math.min(Math.max(startAt|0,0),Math.max(0,list.length-1));
     lbCaption=caption||""; lbLocal=trimStr(srcOverride||"");
@@ -1834,7 +1859,7 @@
 
   /* ---------------- task modal ---------------- */
   var taskImages=[], taskUp=[], taskStatus="To Do", uploading=false;
-  var MAX_PHOTOS=20;
+  var MAX_PHOTOS=20, MAX_VIDEOS=10;
 
   function fillRoomSelect(sel,selected){
     var rooms=state.rooms.slice();
@@ -1887,7 +1912,7 @@
       : "Add it now, or any time later. Nothing is required.";
   }
   function setPhotos(v){
-    taskImages=Array.isArray(v)?v.map(safeUrl).filter(Boolean):imgList(v);
+    taskImages=Array.isArray(v)?v.map(safeUrl).filter(Boolean):urlList(v);
     renderShots();
   }
   function openTaskModal(task,presetRoom,focusMedia){
@@ -1900,9 +1925,9 @@
     els.taskTitleInput.value=task?task.title:"";
     els.taskDesc.value=task?(task.description||""):"";
     setSegs(task?task.status:"To Do");
-    els.taskVideo.value=task?(task.video||""):"";
-    els.videoField.classList.toggle("hidden",!(task&&task.video));
-    renderVidPrev(false);
+    var vids=task?urlList(task.video):[];
+    setVideos(vids);
+    els.videoField.classList.toggle("hidden",!vids.length);
     taskUp=[]; setPhotos(task?task.image:"");
     els.taskErr.textContent="";
     els.taskDeleteRow.classList.toggle("hidden",!task);
@@ -1915,13 +1940,15 @@
     taskUp.forEach(function(u){ URL.revokeObjectURL(u); });
     taskImages=[]; taskUp=[]; els.shotStrip.innerHTML="";
     els.fileGallery.value=""; els.fileCamera.value="";
-    els.vidPrev.innerHTML="";   // stop the iframe, don't leave it loading behind the modal
+    els.vidRows.innerHTML="";   // stop the iframes, don't leave them loading behind the modal
   }
   els.taskCancel.addEventListener("click",closeTaskModal);
   els.taskBack.addEventListener("click",function(e){ if(e.target===els.taskBack&&!uploading)closeTaskModal(); });
   els.toggleVideoBtn.addEventListener("click",function(){
     els.videoField.classList.toggle("hidden");
-    if(!els.videoField.classList.contains("hidden")) els.taskVideo.focus();
+    if(els.videoField.classList.contains("hidden"))return;
+    if(!els.vidRows.querySelector(".vrow")) setVideos([]);
+    els.vidRows.querySelector(".vurl").focus();
   });
   els.taskDelete.addEventListener("click",function(){
     var t=state.editing; if(!t)return; closeTaskModal(); doDeleteTask(t);
@@ -1944,27 +1971,31 @@
     });
   });
 
-  /* Renders under the video field as soon as the URL is recognisable. Platforms that
+  /* Renders under each video field as soon as that URL is recognisable. Platforms that
      hand out a still get a light <img> poster that swaps to the player on tap; the rest
      embed directly. Unknown links still get a card, so the field never looks broken. */
-  function renderVidPrev(play){
-    var v=videoInfo(els.taskVideo.value);
-    if(!v){ els.vidPrev.innerHTML=""; return; }
+  /* `solo` = this is the item's only link. A poster is one cheap image, so it always shows;
+     an embed is a third-party frame with its own scripts, so several links render a quiet
+     "Show preview" strip instead of stacking N frames (and N screens of scrolling) the
+     moment the editor opens. One link behaves exactly as it always did. */
+  function vidCardHTML(v,play,solo){
     var body;
     if(v.thumb && !play){
       body='<button type="button" class="poster" data-play="1" aria-label="Play preview">'
         +'<img src="'+esc(v.thumb)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" />'
         +'<span class="pbtn">▶</span></button>';
-    } else if(v.embed){
+    } else if(v.embed && (play||solo)){
       body='<div class="frame '+(v.ratio==="9/16"?"r916":"r169")+'">'
         +'<iframe src="'+esc(v.embed)+'" loading="lazy" allowfullscreen '
         +'referrerpolicy="strict-origin-when-cross-origin" '
         +'allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture" '
         +'title="Video preview"></iframe></div>';
+    } else if(v.embed){
+      body='<button type="button" class="showprev" data-play="1">▶ Show preview</button>';
     } else {
       body="";
     }
-    els.vidPrev.innerHTML='<div class="vidcard">'+body
+    return '<div class="vidcard">'+body
       +'<div class="bar"><span class="plat">'+esc(v.label)+'</span>'
       +'<span class="who">'+esc(hostOf(v.url))+'</span>'
       +'<a href="'+esc(v.url)+'" target="_blank" rel="noopener">Open ↗</a></div>'
@@ -1973,13 +2004,66 @@
           : (v.kind==="link" ? '<div class="note2">Not a platform we can preview — the link still opens.</div>' : ""))
       +'</div>';
   }
+  // Only this row's preview is touched, so re-rendering one never tears down a sibling's
+  // iframe (which would restart the embed and lose a playing video).
+  function renderVidRow(row,play){
+    var inp=row.querySelector(".vurl"), prev=row.querySelector(".vprev");
+    var v=videoInfo(inp.value), solo=els.vidRows.querySelectorAll(".vrow").length<2;
+    prev.innerHTML=v?vidCardHTML(v,play,solo):"";
+  }
+  function vidRowHTML(url){
+    return '<div class="vrow">'
+      + '<div class="vtop">'
+      +   '<input type="url" class="vurl" value="'+esc(url||"")+'" '
+      +     'placeholder="Paste a Reel, YouTube or Drive link…" />'
+      +   '<button type="button" class="vx" title="Remove this link" aria-label="Remove this link">✕</button>'
+      + '</div>'
+      + '<div class="vprev"></div>'
+      + '</div>';
+  }
+  function setVideos(list){
+    var urls=(list&&list.length)?list.slice(0,MAX_VIDEOS):[""];
+    els.vidRows.innerHTML=urls.map(vidRowHTML).join('');
+    Array.prototype.forEach.call(els.vidRows.querySelectorAll(".vrow"),function(r){ renderVidRow(r,false); });
+    updateAddVid();
+  }
+  function collectVideos(){
+    return Array.prototype.map.call(els.vidRows.querySelectorAll(".vurl"),function(i){ return trimStr(i.value); })
+      .filter(function(u){ return u; });
+  }
   var vidDebounce=null;
-  els.taskVideo.addEventListener("input",function(){
+  els.vidRows.addEventListener("input",function(e){
+    var row=e.target.closest(".vrow"); if(!row||!e.target.classList.contains("vurl"))return;
     if(vidDebounce)clearTimeout(vidDebounce);
-    vidDebounce=setTimeout(function(){ renderVidPrev(false); },350);
+    vidDebounce=setTimeout(function(){ renderVidRow(row,false); },350);
   });
-  els.vidPrev.addEventListener("click",function(e){
-    if(e.target.closest("[data-play]")) renderVidPrev(true);
+  els.vidRows.addEventListener("click",function(e){
+    if(e.target.closest("[data-play]")){ renderVidRow(e.target.closest(".vrow"),true); return; }
+    var x=e.target.closest(".vx");
+    if(x){
+      var row=x.closest(".vrow"), rows=els.vidRows.querySelectorAll(".vrow");
+      // The last row empties rather than vanishing — a field group with nothing in it at
+      // all reads as broken, and there'd be no input left to type the next link into.
+      if(rows.length<=1){ row.querySelector(".vurl").value=""; renderVidRow(row,false); }
+      else {
+        row.remove();
+        // Back down to one link: the survivor is solo again, so let it embed.
+        var left=els.vidRows.querySelectorAll(".vrow");
+        if(left.length===1 && left[0].querySelector(".showprev")) renderVidRow(left[0],false);
+      }
+      updateAddVid();
+    }
+  });
+  function updateAddVid(){
+    var n=els.vidRows.querySelectorAll(".vrow").length;
+    els.addVidBtn.classList.toggle("hidden",n>=MAX_VIDEOS);
+  }
+  els.addVidBtn.addEventListener("click",function(){
+    if(els.vidRows.querySelectorAll(".vrow").length>=MAX_VIDEOS)return;
+    els.vidRows.insertAdjacentHTML("beforeend",vidRowHTML(""));
+    var rows=els.vidRows.querySelectorAll(".vrow");
+    rows[rows.length-1].querySelector(".vurl").focus();
+    updateAddVid();
   });
 
   function setUploading(on,frac,which){
@@ -2053,12 +2137,14 @@
   els.taskSave.addEventListener("click",function(){
     if(uploading)return;
     var room=els.taskRoom.value, title=els.taskTitleInput.value.trim();
-    var desc=els.taskDesc.value.trim(), video=els.taskVideo.value.trim();
+    var desc=els.taskDesc.value.trim(), vids=collectVideos();
     if(!room||room==="__new__"){ els.taskErr.textContent="Pick or create a room."; return; }
     if(!title){ els.taskErr.textContent="Give the item a name."; return; }
-    if(video && !/^https?:\/\//i.test(video)){ els.taskErr.textContent="Video link must start with http:// or https://"; return; }
+    var bad=vids.filter(function(u){ return !/^https?:\/\//i.test(u); });
+    if(bad.length){ els.taskErr.textContent="Video links must start with http:// or https:// — check: "+bad[0]; return; }
+    var video=urlJoin(vids);
     var stamp=nowStamp();
-    var vals={title:title,description:desc,status:taskStatus,image:imgJoin(taskImages),video:video,updated:stamp};
+    var vals={title:title,description:desc,status:taskStatus,image:urlJoin(taskImages),video:video,updated:stamp};
     var entry=state.editing;
     closeTaskModal(); banner("");
 

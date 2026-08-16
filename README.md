@@ -16,8 +16,8 @@ No server, no Apps Script, no build step. It's one self-contained `index.html`.
   **drag** a card between columns or tap the **‹ ›** arrows
 - 📊 Auto progress: one number for the whole project, a thin bar per room
   (`done ÷ total`), never written to the sheet
-- 🖼️ **Optional** inspiration photos and/or a video link per item — add several photos at
-  once, or none at all, now or any time later. Nothing ever requires media
+- 🖼️ **Optional** inspiration photos and/or video links per item — several of each, or
+  none at all, now or any time later. Nothing ever requires media
 - 🔍 Tap a photo for a **full-screen gallery** — swipe, arrow keys, or ‹ › to page through
 - 🕒 Sorted **most recently changed first**; finished items sink to the bottom, capped at 10
   with **Show 10 more**
@@ -68,8 +68,8 @@ tables laid out side by side**. Each table is one **room**:
 - The **header row** is `Title | Description | Status | Image URL | Video URL | Updated`.
 - Rows below are that room's items. Blank rows are fine — they're gaps left by deleted
   items, and the app keeps reading past them.
-- **`Image URL` can hold more than one link** — separate them with line breaks (or spaces).
-  The first is the item's cover.
+- **`Image URL` and `Video URL` can each hold more than one link** — separate them with line
+  breaks (or spaces). The first is the item's cover / primary link.
 - Tables are separated by one or more blank columns and can each be a different length.
 
 Example (two rooms side by side, with a blank column between them):
@@ -258,14 +258,23 @@ Two more things worth knowing:
   Instagram / YouTube / TikTok app when it's installed, and falls back to the browser when
   it isn't. This is your phone's own Universal Links (iOS) / App Links (Android) doing the
   work — the app is never forced open, and on a desktop it just opens a tab.
+  With several links the tile opens the **first** one and carries a count badge; the rest are
+  in the item's **Edit** screen, each with its own **Open ↗**.
 
 If an item has both a photo and a video, the tile shows the photo with a ▶ badge; tapping it
-views the photo, and the video is one tap further in via the item's **Edit** screen.
+views the photo, and the videos are one tap further in via the item's **Edit** screen.
 
 ### Video links & previews
 
-Paste a link into **Video link** and a preview appears under the field, the same way a photo
-preview does. What you get depends on the platform:
+Tap **🔗 Video link** in the item popup, paste a link, and a preview appears under the field
+— the same way a photo preview does. **＋ Another link** adds a row, so one item can hold up
+to **10** links: the Reel that gave you the idea, the how-to video, the supplier's clip. Each
+row has its own preview and its own **✕**.
+
+They all live in the item's **one `Video URL` cell**, separated by line breaks — same as
+photos, so there's no new column and nothing to migrate.
+
+What each preview looks like depends on the platform:
 
 | Link | Preview |
 |---|---|
@@ -276,8 +285,14 @@ preview does. What you get depends on the platform:
 | Anything else | A card with the hostname and an **Open ↗** link |
 
 In the checklist, an item with a video shows a tinted play tile — Instagram's gradient,
-YouTube's red — so you can tell at a glance what kind of reference it is. If an item has
-both a photo and a video, the photo wins and gets a small ▶ badge.
+YouTube's red — so you can tell at a glance what kind of reference it is, with a small count
+badge when there's more than one. If an item has both a photo and a video, the photo wins and
+gets a ▶ badge.
+
+**Several links don't load several embeds.** A poster image is one cheap request, so it
+always shows; a platform that can only be embedded (Instagram, TikTok, Vimeo) gets a quiet
+**▶ Show preview** strip instead, and loads its frame when you ask for it. With a single link
+nothing changes — it previews straight away, as it always did.
 
 **Why Instagram embeds rather than showing a thumbnail:** Instagram's oEmbed API has required
 a Facebook app token since 2020, so there is no way for a page with no server to fetch a
@@ -478,9 +493,14 @@ Settings are stored per-browser, so enter them once on each device.
 - **Only one of my photos shows on the row:** that's by design — the row, the board card and
   the room tile show the **cover** (the first one) with a badge counting the rest. Tap it for
   the full gallery.
-- **A photo I typed into the sheet by hand is ignored:** each link must start with `http://`
-  or `https://`, and links must be separated by a line break or a space. Anything else in
-  that cell is skipped.
+- **Tapping a video tile always opens the same link:** it opens the first one. The tile has to
+  stay a real link for the app handoff to work, and a link can only point at one place — open
+  the item to reach the others.
+- **A photo or video I typed into the sheet by hand is ignored:** each link must start with
+  `http://` or `https://`, and links must be separated by a line break or a space. Anything
+  else in those cells is skipped.
+- **"Video links must start with http:// or https://":** one of the rows has something that
+  isn't a full URL — the message names it. Fix or ✕ that row and save again.
 - **No floor chips on the home page:** no room has a floor yet. Open a room → **Edit room**
   and type one, and the chips appear. Floor names are matched ignoring case and extra spaces,
   so `ground floor` and `Ground  Floor` land in the same group — the spelling of whichever
