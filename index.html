@@ -358,7 +358,13 @@
     <button class="btn" id="connectBtn" type="button" style="background:#fff;color:#3c4043;border:1px solid var(--line)">
       <span id="connectBtnText">Sign in with Google</span>
     </button>
-    <div class="hintx" id="authState" style="margin-top:8px">Not signed in.</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px">
+      <div class="hintx" id="authState" style="margin:0">Not signed in.</div>
+      <button class="linkbtn danger hidden" id="signOutBtn" type="button">Sign out</button>
+    </div>
+    <div class="hintx" id="authNote" style="margin-top:6px">
+      You stay signed in on this device until Google's session ends — reloading the page won't ask again.
+    </div>
     <div class="row2">
       <button class="btn ghost" id="cancelSettings" type="button">Close</button>
       <button class="btn" id="saveSettings" type="button">Save</button>
@@ -496,7 +502,9 @@
 (function(){
   "use strict";
 
-  var LS_CLIENT="it_client_id", LS_SHEET="it_sheet_id", LS_TAB="it_tab";
+  var LS_CLIENT="it_client_id", LS_SHEET="it_sheet_id", LS_TAB="it_tab", LS_TOKEN="it_token";
+  var RENEW_BEFORE_MS=5*60*1000;   // start renewing this long before expiry
+  var EXPIRY_MARGIN_S=120;         // treat the token as dead this early, to beat clock skew
   var POLL_MS=20000;
   var SCOPE="https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file";
   var DISCOVERY="https://sheets.googleapis.com/$discovery/rest?version=v4";
@@ -522,7 +530,7 @@
   ["wrap","headTitle","headLeft","syncSub","authBtn","sheetLink","settingsBtn","banner","bannerText","bannerAct",
    "viewHome","viewRoom","viewBoard","heroBtn","overallPct","overallMeta","overallBar","rooms","newRoomBtn",
    "roomList","roomShowMore","addItemBtn","roomRename","roomDelete","filters","cols",
-   "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","authState","saveSettings","cancelSettings",
+   "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","authState","signOutBtn","authNote","saveSettings","cancelSettings",
    "taskBack","taskTitle","taskSubtitle","taskRoom","taskNewRoom","taskTitleInput","taskSegs","taskDesc","taskVideo",
    "videoField","toggleVideoBtn","optBox","optSub","prevWrap","photoPrevImg","prevLabel","pickGalleryBtn","pickCameraBtn",
    "removePhotoBtn","fileGallery","fileCamera","upBar","upBarFill","taskErr","taskSave","taskCancel","taskDelete","taskDeleteRow",
@@ -813,15 +821,46 @@
     tokenClient=google.accounts.oauth2.initTokenClient({client_id:state.clientId,scope:SCOPE,callback:function(){},error_callback:function(){}});
     tokenClient.__cid=state.clientId;
   }
+  /* --------- token persistence ---------
+     Google's browser token client issues access tokens only — roughly an hour, and no
+     refresh token (those need a client secret, which a static page cannot hold). So a
+     truly permanent login isn't reachable here. What we can do is stop throwing the token
+     away: keep it in localStorage with its expiry, reuse it across reloads, and renew it
+     silently in the background while the app is open. The result is that a reload never
+     asks for anything, and a session only ends when Google's own session does. */
+  function applyToken(tok,expiryMs){
+    accessToken=tok; tokenExpiry=expiryMs;
+    if(window.gapi&&gapi.client&&gapi.client.setToken) gapi.client.setToken({access_token:tok});
+    state.signedIn=true;
+    try{ localStorage.setItem(LS_TOKEN,JSON.stringify({t:tok,e:expiryMs,c:state.clientId})); }catch(e){}
+  }
+  function restoreToken(){
+    try{
+      var o=JSON.parse(localStorage.getItem(LS_TOKEN)||"null");
+      // A token minted for a different Client ID is useless — and keeping it would send
+      // one project's token to another project's scopes.
+      if(!o||!o.t||!o.e||o.c!==state.clientId) return false;
+      if(Date.now()>=o.e){ forgetToken(); return false; }
+      accessToken=o.t; tokenExpiry=o.e;
+      if(window.gapi&&gapi.client&&gapi.client.setToken) gapi.client.setToken({access_token:o.t});
+      state.signedIn=true;
+      return true;
+    }catch(e){ return false; }
+  }
+  function forgetToken(){
+    accessToken=""; tokenExpiry=0; state.signedIn=false;
+    try{ localStorage.removeItem(LS_TOKEN); }catch(e){}
+    if(window.gapi&&gapi.client&&gapi.client.setToken){ try{ gapi.client.setToken(null); }catch(e){} }
+  }
+  function tokenAlive(){ return !!accessToken && Date.now()<tokenExpiry; }
+
   function requestToken(interactive){
     return new Promise(function(resolve,reject){
       if(!tokenClient){reject(new Error("Auth not ready"));return;}
       tokenClient.callback=function(resp){
         if(resp&&resp.access_token){
-          accessToken=resp.access_token;
-          gapi.client.setToken({access_token:resp.access_token});
-          tokenExpiry=Date.now()+((resp.expires_in||3600)-60)*1000;
-          state.signedIn=true;updateStatus();resolve(resp);
+          applyToken(resp.access_token, Date.now()+(((resp.expires_in||3600)-EXPIRY_MARGIN_S)*1000));
+          updateStatus(); resolve(resp);
         } else reject(new Error((resp&&resp.error)||"No token"));
       };
       tokenClient.error_callback=function(err){reject(new Error((err&&err.type)||"auth_failed"));};
@@ -829,13 +868,25 @@
     });
   }
   function ensureToken(interactive){
-    if(state.signedIn&&Date.now()<tokenExpiry)return Promise.resolve();
+    if(tokenAlive())return Promise.resolve();
     return requestToken(interactive);
+  }
+  // Renew ahead of expiry so a long-open tab never bounces off a 401 mid-write.
+  var renewing=false;
+  function maybeRenew(){
+    if(renewing||!accessToken||!tokenClient)return;
+    if(Date.now() < tokenExpiry-RENEW_BEFORE_MS)return;
+    renewing=true;
+    requestToken(false).catch(function(){}).then(function(){ renewing=false; });
   }
   function connect(interactive){
     if(!configured()){openModal();return Promise.reject(new Error("not configured"));}
     return waitForLibs().then(initGapi).then(function(){initTokenClient();})
-      .then(function(){return ensureToken(interactive);})
+      .then(function(){
+        // A stored, still-valid token means no auth round-trip at all on this load.
+        if(restoreToken()){ updateStatus(); maybeRenew(); return; }
+        return ensureToken(interactive);
+      })
       .then(function(){return refresh();})
       .catch(function(err){
         state.signedIn=false;updateStatus();
@@ -856,6 +907,7 @@
     if(state.signedIn) els.authBtn.classList.add("hidden");
     else { els.authBtn.classList.remove("hidden"); els.syncSub.textContent="Sign in to sync"; }
     els.authState.textContent=state.signedIn?"Signed in ✓":"Not signed in.";
+    els.signOutBtn.classList.toggle("hidden",!state.signedIn);
     els.addItemBtn.disabled=!state.signedIn;
   }
 
@@ -1025,7 +1077,9 @@
     var status=err&&(err.status||(err.result&&err.result.error&&err.result.error.code));
     var msg=(err&&err.result&&err.result.error&&err.result.error.message)||(err&&err.message)||"Request failed";
     if(status===401){
-      state.signedIn=false;updateStatus();
+      // The stored token is dead — drop it before trying again, or restoreToken() would
+      // hand the same rejected token back on the next load.
+      forgetToken(); updateStatus();
       requestToken(false).then(refresh).catch(function(){ banner("Session expired. Sign in again.","warn","Sign in",function(){connect(true);}); });
       return;
     }
@@ -1515,6 +1569,7 @@
   function openModal(){
     els.clientIdInput.value=state.clientId; els.sheetInput.value=state.sheetId; els.tabInput.value=state.tab;
     els.authState.textContent=state.signedIn?"Signed in ✓":"Not signed in.";
+    els.signOutBtn.classList.toggle("hidden",!state.signedIn);
     els.modalBack.classList.add("open");
   }
   function closeModal(){ els.modalBack.classList.remove("open"); }
@@ -1523,7 +1578,9 @@
   els.cancelSettings.addEventListener("click",closeModal);
   els.modalBack.addEventListener("click",function(e){ if(e.target===els.modalBack)closeModal(); });
   function persistSettings(){
+    var prevClient=state.clientId;
     state.clientId=els.clientIdInput.value.trim();
+    if(prevClient && state.clientId!==prevClient) forgetToken();
     state.sheetId=parseSheetId(els.sheetInput.value);
     state.tab=els.tabInput.value.trim()||"Interior";
     localStorage.setItem(LS_CLIENT,state.clientId);
@@ -1533,6 +1590,12 @@
   els.saveSettings.addEventListener("click",function(){
     persistSettings(); renderAll(); updateStatus(); closeModal();
     if(configured()){ banner("Connecting…","info"); connect(state.signedIn?false:true); }
+  });
+  els.signOutBtn.addEventListener("click",function(){
+    forgetToken(); updateStatus();
+    state.rooms=[]; state.tasks=[]; state.pending=[]; renderAll();
+    els.connectBtnText.textContent="Sign in with Google";
+    banner("Signed out on this device.","info","Sign in",function(){connect(true);});
   });
   els.connectBtn.addEventListener("click",function(){
     persistSettings();
@@ -1549,10 +1612,14 @@
       || els.delRoomBack.classList.contains("open") || els.confirmBack.classList.contains("open");
   }
   setInterval(function(){
-    if(state.signedIn && document.visibilityState==="visible" && !busy()) refresh();
+    if(document.visibilityState!=="visible")return;
+    maybeRenew();
+    if(state.signedIn && !busy()) refresh();
   },POLL_MS);
   document.addEventListener("visibilitychange",function(){
-    if(document.visibilityState==="visible" && state.signedIn && !busy()) refresh();
+    if(document.visibilityState!=="visible")return;
+    maybeRenew();
+    if(state.signedIn && !busy()) refresh();
   });
   document.addEventListener("keydown",function(e){
     if(e.key!=="Escape")return;
