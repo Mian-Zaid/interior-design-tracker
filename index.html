@@ -964,12 +964,45 @@
       if(skipped) banner("Couldn't add the 'Updated' column to "+skipped+" room table(s) — the column beside them isn't empty. Those rooms sort by sheet order.","warn");
       return;
     }
+    var maxCol=0;
+    todo.forEach(function(r){ maxCol=Math.max(maxCol,p.blocks[r].titleCol+5); });
     ensureToken(false)
+      .then(function(){ return ensureGrid(maxCol,0); })
       .then(function(){ return gapi.client.sheets.spreadsheets.values.batchUpdate({
         spreadsheetId:state.sheetId, resource:{ valueInputOption:"RAW", data:data } }); })
       .then(function(){ return refresh(); })
       .then(function(){ banner("Added an 'Updated' column to your sheet so items can sort by most recent.","info"); })
       .catch(function(){ /* non-fatal: sorting falls back to sheet order */ });
+  }
+  /* A tab has a fixed grid — a new Google Sheet is 1000 rows x 26 columns — and
+     values.update does NOT auto-expand it: a write outside returns
+     "exceeds grid limits". Each room is 6 columns plus a gap, so the 4th room lands on
+     column 27 and fails. Appending rows/columns at the far edge shifts nothing, unlike
+     inserting, so it stays within the never-move-a-user's-data rule. */
+  function sheetProps(){
+    return gapi.client.sheets.spreadsheets.get({
+      spreadsheetId:state.sheetId, fields:"sheets.properties(sheetId,title,gridProperties)"
+    }).then(function(res){
+      var sheets=(res.result&&res.result.sheets)||[];
+      for(var i=0;i<sheets.length;i++){
+        var pr=sheets[i].properties||{};
+        if(trimStr(pr.title)===trimStr(state.tab)) return pr;
+      }
+      throw new Error("Tab '"+state.tab+"' isn't in this spreadsheet. Check the Tab name in ⚙ settings.");
+    });
+  }
+  function ensureGrid(lastCol,lastRow){
+    return sheetProps().then(function(pr){
+      var g=pr.gridProperties||{}, reqs=[];
+      var cols=g.columnCount||0, rows=g.rowCount||0;
+      // a little headroom, so back-to-back rooms don't each need a round-trip
+      if(lastCol>=cols) reqs.push({appendDimension:{sheetId:pr.sheetId,dimension:"COLUMNS",length:(lastCol-cols+1)+7}});
+      if(lastRow>=rows) reqs.push({appendDimension:{sheetId:pr.sheetId,dimension:"ROWS",length:(lastRow-rows+1)+50}});
+      if(!reqs.length) return null;
+      return gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId:state.sheetId, resource:{requests:reqs}
+      });
+    });
   }
   function findWriteRow(grid, block){
     var start=block.lastDataRow+1, limit=Math.max(grid.length,start)+200;
@@ -999,12 +1032,14 @@
       var maxUsedCol=-1;
       grid.forEach(function(row){ if(row && (row.length-1)>maxUsedCol) maxUsedCol=row.length-1; });
       var newCol=(maxUsedCol<0)?0:(maxUsedCol+2);
-      return gapi.client.sheets.spreadsheets.values.batchUpdate({
-        spreadsheetId:state.sheetId,
-        resource:{ valueInputOption:"RAW", data:[
-          { range:q(state.tab)+"!"+colA1(newCol)+(titleRow0+1), values:[[ name ]] },
-          { range:q(state.tab)+"!"+colA1(newCol)+(headerRow0+1)+":"+colA1(newCol+5)+(headerRow0+1), values:[ HEADERS ] }
-        ]}
+      return ensureGrid(newCol+5, Math.max(titleRow0,headerRow0)).then(function(){
+        return gapi.client.sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId:state.sheetId,
+          resource:{ valueInputOption:"RAW", data:[
+            { range:q(state.tab)+"!"+colA1(newCol)+(titleRow0+1), values:[[ name ]] },
+            { range:q(state.tab)+"!"+colA1(newCol)+(headerRow0+1)+":"+colA1(newCol+5)+(headerRow0+1), values:[ HEADERS ] }
+          ]}
+        });
       });
     });
   }
@@ -1038,10 +1073,12 @@
       var r0=findWriteRow(grid,block);
       if(r0<0) throw new Error("No empty row under '"+payload.room+"'.");
       var row=r0+1;
-      return gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId:state.sheetId,
-        range:q(state.tab)+"!"+colA1(block.titleCol)+row+":"+colA1(block.lastCol)+row,
-        valueInputOption:"RAW", resource:{ values:[ rowValues(payload,block) ] }
+      return ensureGrid(block.lastCol, r0).then(function(){
+        return gapi.client.sheets.spreadsheets.values.update({
+          spreadsheetId:state.sheetId,
+          range:q(state.tab)+"!"+colA1(block.titleCol)+row+":"+colA1(block.lastCol)+row,
+          valueInputOption:"RAW", resource:{ values:[ rowValues(payload,block) ] }
+        });
       });
     });
   }
@@ -1073,9 +1110,15 @@
       });
     });
   }
+  // gapi rejects with a plain object carrying result.error.message and no .message,
+  // so anything reading err.message alone shows the fallback and hides the real cause.
+  function apiMsg(err,fallback){
+    return (err&&err.result&&err.result.error&&err.result.error.message)
+      ||(err&&err.message)||fallback;
+  }
   function handleApiError(err){
     var status=err&&(err.status||(err.result&&err.result.error&&err.result.error.code));
-    var msg=(err&&err.result&&err.result.error&&err.result.error.message)||(err&&err.message)||"Request failed";
+    var msg=apiMsg(err,"Request failed");
     if(status===401){
       // The stored token is dead — drop it before trying again, or restoreToken() would
       // hand the same rejected token back on the next load.
@@ -1394,7 +1437,7 @@
       .then(function(url){ setUploading(false); URL.revokeObjectURL(localUrl); setPhoto(url); })
       .catch(function(err){
         setUploading(false); URL.revokeObjectURL(localUrl); setPhoto(taskImage);
-        els.taskErr.textContent=(err&&err.message)||"Photo upload failed";
+        els.taskErr.textContent=apiMsg(err,"Photo upload failed");
         if(err&&err.status===401) requestToken(false).catch(function(){});
       });
   }
@@ -1463,7 +1506,7 @@
     els.newRoomCreate.innerHTML='<span class="spin"></span>Creating…';
     ensureToken(false).then(function(){ return createRoom(name); }).then(function(){ return refresh(); })
       .then(function(){ var cb=newRoomCb; closeNewRoom(); if(cb) cb(name); banner("Room '"+esc(name)+"' created.","info"); })
-      .catch(function(err){ els.newRoomErr.textContent=(err&&err.message)||"Could not create room"; })
+      .catch(function(err){ els.newRoomErr.textContent=apiMsg(err,"Could not create room"); })
       .then(function(){ els.newRoomCreate.disabled=false; els.newRoomCreate.textContent="Create"; });
   });
 
@@ -1486,7 +1529,7 @@
     els.renameErr.textContent=""; els.renameSave.disabled=true; els.renameSave.innerHTML='<span class="spin"></span>Renaming…';
     ensureToken(false).then(function(){ return renameRoom(oldName,name); }).then(function(){ return refresh(); })
       .then(function(){ closeRename(); go("room",name); banner("Renamed to '"+esc(name)+"'.","info"); })
-      .catch(function(err){ els.renameErr.textContent=(err&&err.message)||"Could not rename"; })
+      .catch(function(err){ els.renameErr.textContent=apiMsg(err,"Could not rename"); })
       .then(function(){ els.renameSave.disabled=false; els.renameSave.textContent="Rename"; });
   });
 
