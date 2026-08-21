@@ -413,6 +413,89 @@
   .foot{text-align:center;font-size:11px;color:var(--muted);margin-top:8px}
   a{color:var(--accent)}
   hr.sep{border:none;border-top:1px solid var(--line);margin:18px 0 14px}
+
+  /* ---------------- PDF pages ----------------
+     A room rendered as a document: one cover sheet, then one A4 page per photo and per
+     video link, each carrying that item's title and description. The sheets are laid out
+     in real millimetres so what's on screen is exactly what lands in the PDF — the screen
+     only scales them down with a transform, which print resets. Paper is always white and
+     near-black regardless of the app theme: a page that inherits dark mode prints as a
+     black rectangle. */
+  .pbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .pbar .pnote{font-size:12px;color:var(--muted);flex:1 1 190px;min-width:0}
+  .slot{overflow:hidden;margin-bottom:16px}
+  .sheet{
+    width:210mm;height:297mm;padding:17mm 16mm 14mm;background:#ffffff;color:#151d1d;
+    transform-origin:0 0;box-shadow:0 4px 22px rgba(10,40,38,.16);border:1px solid #e2e9e8;
+    display:flex;flex-direction:column;overflow:hidden;
+    font-size:10.5pt;line-height:1.5;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .s-top{display:flex;justify-content:space-between;gap:10px;font-size:8pt;letter-spacing:.06em;
+    text-transform:uppercase;color:#8d9c99;padding-bottom:6mm;border-bottom:.4mm solid #e8eeed}
+  .s-title{font-size:19pt;line-height:1.2;letter-spacing:-.02em;margin:7mm 0 0;font-weight:700}
+  .s-meta{display:flex;align-items:center;gap:8px;margin-top:3.5mm;flex-wrap:wrap}
+  /* s- prefixed, because the bare .prog/.done/.todo names belong to the app chrome. */
+  .s-chip{display:inline-flex;align-items:center;gap:5px;border:.35mm solid #dde5e4;border-radius:99px;
+    padding:1mm 3mm;font-size:8pt;font-weight:700;letter-spacing:.02em;color:#3d4c4a}
+  .s-chip::before{content:"";width:2mm;height:2mm;border-radius:50%;background:#9aa9a7}
+  .s-chip.s-prog::before{background:#b45309}
+  .s-chip.s-done::before{background:#0d9488}
+  .s-count{font-size:8.5pt;color:#8d9c99}
+  .s-desc{margin:4mm 0 0;color:#3d4c4a;max-height:42mm;overflow:hidden;white-space:pre-wrap}
+  .sheet.textonly .s-desc{max-height:none}
+  .s-media{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;
+    align-items:center;gap:3mm;margin-top:7mm}
+  .s-photo,.s-vid{display:block;position:relative;flex:1 1 auto;min-height:0;width:100%;
+    text-decoration:none;color:inherit;line-height:0}
+  .s-photo img,.s-vid img{display:block;width:100%;height:100%;object-fit:contain}
+  .s-vid.noimg{flex:0 0 auto;width:120mm;max-width:100%;height:68mm;
+    border:.4mm dashed #d5dedd;border-radius:2mm;background:#fbfcfc}
+  .s-photo.noimg{flex:0 0 auto;width:120mm;max-width:100%;height:68mm;
+    border:.4mm dashed #d5dedd;border-radius:2mm;background:#fbfcfc;
+    display:flex;align-items:center;justify-content:center}
+  .s-photo.noimg::after{content:"Photo didn't load — tap to open it";font-size:9pt;
+    line-height:1.4;color:#a7b4b2}
+  .s-play{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:17mm;height:17mm;border-radius:50%;background:rgba(13,148,136,.94);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:15pt;line-height:1;
+    padding-left:1mm;box-shadow:0 1mm 3mm rgba(0,0,0,.25);
+  }
+  .s-cap{flex:none;font-size:8.5pt;color:#8d9c99;text-align:center;line-height:1.45;
+    width:100%;word-break:break-all}
+  .s-cap b{color:#0f766e;font-weight:700}
+  .s-none{flex:none;margin-top:7mm;font-size:9.5pt;color:#a7b4b2}
+  .s-foot{flex:none;margin-top:6mm;padding-top:4mm;border-top:.4mm solid #e8eeed;
+    font-size:8pt;color:#a7b4b2;display:flex;justify-content:space-between;gap:10px}
+  /* cover */
+  .sheet.cover{justify-content:flex-start}
+  .s-kicker{font-size:8.5pt;letter-spacing:.14em;text-transform:uppercase;color:#8d9c99}
+  .s-room{font-size:34pt;line-height:1.08;letter-spacing:-.03em;margin:6mm 0 0;font-weight:800}
+  .s-floor{margin-top:3mm;font-size:11pt;color:#5f7370}
+  .s-rule{height:.6mm;background:#0d9488;width:28mm;margin:9mm 0}
+  .s-stats{font-size:11pt;color:#3d4c4a}
+  .s-grow{flex:1 1 auto}
+  .s-date{font-size:8.5pt;color:#a7b4b2}
+
+  /* @page can't be scoped to a view, so this is global — the sheets carry their own
+     margins as padding, and nothing else in the app is meant to be printed. */
+  @page{size:A4 portrait;margin:0}
+  @media print{
+    /* Only the pages view prints as a document; everything else is chrome. */
+    body.pdf-mode{background:#fff;padding:0;margin:0}
+    body.pdf-mode header.app,body.pdf-mode #banner,body.pdf-mode .pbar,
+    body.pdf-mode #viewHome,body.pdf-mode #viewRoom,body.pdf-mode #viewBoard,
+    body.pdf-mode .modal-back,body.pdf-mode .lightbox{display:none !important}
+    body.pdf-mode .wrap{max-width:none;padding:0;margin:0}
+    body.pdf-mode .slot{overflow:visible;margin:0;height:auto !important}
+    /* !important beats the inline transform the on-screen fitter writes. */
+    body.pdf-mode .sheet{
+      transform:none !important;box-shadow:none;border:none;
+      height:296mm;break-after:page;page-break-after:always;break-inside:avoid;
+    }
+    body.pdf-mode .slot:last-child .sheet{break-after:auto;page-break-after:auto}
+  }
 </style>
 </head>
 <body>
@@ -463,6 +546,10 @@
 
   <!-- ROOM -->
   <section id="viewRoom" class="hidden">
+    <div class="sec-row" style="margin-top:0">
+      <span class="sec-lbl">Items</span>
+      <button type="button" class="linkbtn" id="roomPagesBtn">◫ Pages</button>
+    </div>
     <div id="roomList"></div>
     <button class="showmore hidden" id="roomShowMore" type="button"></button>
     <button class="btn" id="addItemBtn" type="button" style="margin-top:14px">＋ Add item</button>
@@ -478,6 +565,15 @@
     <div class="filters" id="filters"></div>
     <div class="cols" id="cols"></div>
     <div class="hint">Drag a card between columns, or use ‹ › to move it</div>
+  </section>
+
+  <!-- PAGES (PDF-style document for one room) -->
+  <section id="viewPages" class="hidden">
+    <div class="pbar">
+      <button class="icon-btn accent" id="pagesPdf" type="button">⤓ Download PDF</button>
+      <span class="pnote" id="pagesNote">Saves an A4 PDF — pick “Save as PDF” as the destination.</span>
+    </div>
+    <div class="pages" id="pages"></div>
   </section>
 
 </div>
@@ -738,6 +834,7 @@
   ["wrap","headTitle","headLeft","syncSub","themeBtn","themeSegs","authBtn","sheetLink","settingsBtn","banner","bannerText","bannerAct",
    "viewHome","viewRoom","viewBoard","heroBtn","overallPct","overallMeta","overallBar","rooms","newRoomBtn",
    "roomList","roomShowMore","addItemBtn","roomRename","roomDelete","filters","cols",
+   "viewPages","pages","pagesPdf","pagesNote","roomPagesBtn",
    "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","sheetLinkWrap","authState","signOutBtn","authNote","shareWrap","shareLink","copyShareBtn","shareNote","saveSettings","cancelSettings",
    "taskBack","taskTitle","taskSubtitle","taskRoom","taskNewRoom","taskTitleInput","taskSegs","taskDesc",
    "videoField","vidRows","addVidBtn","toggleVideoBtn","optBox","optSub","prevWrap","shotStrip","prevLabel","pickGalleryBtn","pickCameraBtn",
@@ -1152,28 +1249,236 @@
     rebuildIndex();
     if(state.view==="home"){ renderOverall(); renderRooms(); }
     else if(state.view==="room"){ renderRoomView(); }
+    else if(state.view==="pages"){ renderPages(); }
     else { renderBoard(); }
   }
 
+  /* ---------------- PDF pages ----------------
+     One room as a document. The sheets are ordinary DOM at true A4 size, so "download"
+     is the browser's own print-to-PDF: it embeds each photo at the resolution the tag
+     asks for and turns every <a> into a real link annotation, which is what makes a
+     video thumbnail tappable inside the finished PDF. Rasterising the page to a canvas
+     instead would cost quality and fail outright — Drive and YouTube images are served
+     without CORS headers, so a canvas holding them can't be read back. */
+
+  // Drive renders any size on demand; the stored ?id= URL itself is not an image
+  // endpoint. w2000 is the print rendition, imgSrc's w400 stays the on-screen one.
+  function imgPrint(url){
+    var id=driveFileId(url);
+    return id?("https://drive.google.com/thumbnail?id="+encodeURIComponent(id)+"&sz=w2000"):trimStr(url);
+  }
+  // Same idea for a video's poster frame. maxresdefault doesn't exist for every YouTube
+  // upload, hence the fallback wired up in wirePageImages().
+  function thumbPrint(v){
+    if(!v||!v.thumb) return "";
+    if(v.kind==="youtube") return v.thumb.replace(/\/mqdefault\.jpg$/,"/maxresdefault.jpg");
+    if(v.kind==="drive") return v.thumb.replace(/sz=w400/,"sz=w2000");
+    return v.thumb;
+  }
+  function dateShort(v){
+    var ms=stampMs(v); if(!isFinite(ms)) return "";
+    try{ return new Date(ms).toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}); }
+    catch(e){ return ""; }
+  }
+
+  // Room order matches the room view — open items first, then done, newest change first.
+  function pageItems(room){
+    var ts=roomTasks(room);
+    return byRecent(ts.filter(function(t){return t.status!=="Done";}))
+      .concat(byRecent(ts.filter(function(t){return t.status==="Done";})));
+  }
+  /* One page per piece of media, so nothing shares a page with anything else. Photos come
+     before videos, each numbered within its own kind ("Video 2 of 3"). An item with no
+     media still gets a page — a document with gaps in it reads as broken. */
+  function itemPages(t){
+    var out=[], imgs=urlList(t.image), vids=urlList(t.video).map(videoInfo).filter(Boolean);
+    imgs.forEach(function(u,i){
+      out.push({kind:"photo", url:u, all:imgs, at:i,
+        label:imgs.length>1?("Photo "+(i+1)+" of "+imgs.length):""});
+    });
+    vids.forEach(function(v,i){
+      out.push({kind:"video", v:v,
+        label:vids.length>1?("Video "+(i+1)+" of "+vids.length):""});
+    });
+    if(!out.length) out.push({kind:"none", label:""});
+    return out;
+  }
+
+  function sheet(inner,cls){
+    return '<div class="slot"><div class="sheet'+(cls?" "+cls:"")+'">'+inner+'</div></div>';
+  }
+  function coverSheet(room,items,total){
+    var done=0; items.forEach(function(t){ if(t.status==="Done") done++; });
+    var floor=floorOf(room);
+    var stats=items.length
+      ? (items.length+" "+(items.length===1?"item":"items")+" · "+done+" done · "+pct(done,items.length)+"%")
+      : "No items yet";
+    return sheet(
+       '<div class="s-kicker">Interior Tracker</div>'
+      +'<div class="s-room">'+esc(room)+'</div>'
+      +(floor?'<div class="s-floor">'+esc(floor)+'</div>':'')
+      +'<div class="s-rule"></div>'
+      +'<div class="s-stats">'+esc(stats)+'</div>'
+      +'<div class="s-grow"></div>'
+      +'<div class="s-date">'+esc(dateShort(nowStamp())+" · "+total+" "+(total===1?"page":"pages"))+'</div>'
+    ,"cover");
+  }
+  function mediaHTML(t,m){
+    if(m.kind==="photo"){
+      // A real anchor, so the PDF gets a link straight to the photo; on screen the click
+      // is intercepted and the existing gallery viewer opens instead.
+      return '<a class="s-photo" href="'+esc(m.url)+'" target="_blank" rel="noopener" '
+        +'data-pimgs="'+esc(m.all.join(" "))+'" data-pat="'+m.at+'" data-pcap="'+esc(t.title||"")+'">'
+        +'<img src="'+esc(imgPrint(m.url))+'" data-fb="'+esc(imgSrc(m.url))+'" loading="lazy" '
+        +'alt="'+esc(t.title||"Photo")+'" />'
+        +'</a>';
+    }
+    if(m.kind==="video"){
+      var v=m.v, th=thumbPrint(v);
+      return '<a class="s-vid'+(th?"":" noimg")+'" href="'+esc(v.url)+'" target="_blank" rel="noopener">'
+        +(th?'<img src="'+esc(th)+'" data-fb="'+esc(v.thumb)+'" loading="lazy" alt="" />':'')
+        +'<span class="s-play" aria-hidden="true">▶</span>'
+        +'</a>'
+        +'<div class="s-cap"><b>'+esc(v.label)+' · tap to play ↗</b><br />'+esc(v.url)+'</div>';
+    }
+    return '<div class="s-none">No photo or video on this item</div><div class="s-grow"></div>';
+  }
+  function entrySheet(t,m,room,n,total){
+    return sheet(
+       '<div class="s-top"><span>'+esc(room)+'</span><span>'+n+' / '+total+'</span></div>'
+      +'<div class="s-title">'+esc(t.title||"—")+'</div>'
+      +'<div class="s-meta"><span class="s-chip s-'+statusClass(t.status)+'">'+esc(t.status)+'</span>'
+      +  (m.label?'<span class="s-count">'+esc(m.label)+'</span>':'')
+      +'</div>'
+      +(t.description?'<div class="s-desc">'+esc(t.description)+'</div>':'')
+      +(m.kind==="none"?mediaHTML(t,m):'<div class="s-media">'+mediaHTML(t,m)+'</div>')
+      +'<div class="s-foot"><span>Interior Tracker</span><span>'
+      +  esc(t.updated?("Updated "+dateShort(t.updated)):"")+'</span></div>'
+    ,m.kind==="none"?"textonly":"");
+  }
+
+  function renderPages(){
+    var room=state.room;
+    els.headTitle.textContent=room||"Room";
+    var items=pageItems(room);
+    var groups=items.map(function(t){ return {t:t, media:itemPages(t)}; });
+    var total=1; groups.forEach(function(g){ total+=g.media.length; });
+    els.syncSub.textContent=total+" "+(total===1?"page":"pages")+" · A4";
+    var html=[coverSheet(room,items,total)], n=1;
+    groups.forEach(function(g){
+      g.media.forEach(function(m){ html.push(entrySheet(g.t,m,room,++n,total)); });
+    });
+    els.pages.innerHTML=html.join("");
+    wirePageImages();
+    fitSheets();
+  }
+  // A poster that 404s (YouTube without a maxres rendition, a photo whose big form won't
+  // load) falls back once to the size the app already shows, then gives up quietly.
+  function wirePageImages(){
+    Array.prototype.forEach.call(els.pages.querySelectorAll("img[data-fb]"),function(im){
+      im.addEventListener("error",function(){
+        var fb=im.getAttribute("data-fb");
+        im.removeAttribute("data-fb");
+        if(fb && fb!==im.getAttribute("src")) im.src=fb;
+        else { im.style.display="none"; var a=im.parentNode; if(a&&a.classList) a.classList.add("noimg"); }
+      });
+    });
+  }
+  /* 210mm is wider than any phone, so each sheet is scaled to its slot and the slot is
+     given the scaled height. Print undoes both (the rules are !important), which is the
+     whole point: the PDF is laid out in millimetres, never in screen pixels. */
+  function fitSheets(){
+    Array.prototype.forEach.call(els.pages.querySelectorAll(".slot"),function(slot){
+      var sh=slot.firstElementChild; if(!sh) return;
+      sh.style.transform="none"; slot.style.height="auto";
+      var slotW=slot.clientWidth, w=sh.offsetWidth, h=sh.offsetHeight;
+      if(!slotW||!w) return;
+      var s=Math.min(1,slotW/w);
+      sh.style.transform="translateX("+((slotW-w*s)/2)+"px) scale("+s+")";
+      slot.style.height=Math.round(h*s)+"px";
+    });
+  }
+  var fitTimer=null;
+  window.addEventListener("resize",function(){
+    if(state.view!=="pages") return;
+    if(fitTimer) clearTimeout(fitTimer);
+    fitTimer=setTimeout(fitSheets,120);
+  });
+
+  // Photos are lazy on screen — dozens of A4 pages is a lot of image — but the print
+  // snapshot is taken immediately, so everything has to be in before print() is called.
+  function loadAllPageImages(){
+    var imgs=Array.prototype.slice.call(els.pages.querySelectorAll("img"));
+    imgs.forEach(function(i){ i.setAttribute("loading","eager"); });
+    var pend=imgs.filter(function(i){ return !i.complete; });
+    if(!pend.length) return Promise.resolve();
+    return new Promise(function(resolve){
+      var left=pend.length, settled=false;
+      var tick=function(){ if(!settled && --left<=0){ settled=true; resolve(); } };
+      pend.forEach(function(i){ i.addEventListener("load",tick); i.addEventListener("error",tick); });
+      // Never hold the button hostage to one stalled thumbnail.
+      setTimeout(function(){ if(!settled){ settled=true; resolve(); } },15000);
+    });
+  }
+  /* The browser's own PDF writer. document.title is what Chrome, Edge and Safari offer
+     as the file name in the save dialog, so it carries the room name for the duration. */
+  var prevTitle=null;
+  function restoreTitle(){ if(prevTitle!==null){ document.title=prevTitle; prevTitle=null; } }
+  function pdfName(room){
+    return trimStr(room||"Room").replace(/[\\\/:*?"<>|]+/g,"-")+" — Interior Tracker";
+  }
+  function downloadPdf(){
+    if(prevTitle!==null) return;                 // a print is already being prepared
+    var btn=els.pagesPdf, label=btn.textContent;
+    btn.disabled=true; btn.textContent="Preparing…";
+    loadAllPageImages().then(function(){
+      btn.disabled=false; btn.textContent=label;
+      prevTitle=document.title;
+      document.title=pdfName(state.room);
+      window.print();
+    });
+  }
+  window.addEventListener("afterprint",restoreTitle);
+  // Ctrl/⌘-P from the pages view should produce the same document, not a half-loaded one.
+  window.addEventListener("beforeprint",function(){ if(state.view==="pages") loadAllPageImages(); });
+
+  els.pagesPdf.addEventListener("click",downloadPdf);
+  els.roomPagesBtn.addEventListener("click",function(){ if(state.room) go("pages",state.room); });
+  els.pages.addEventListener("click",function(e){
+    var a=e.target.closest(".s-photo"); if(!a) return;
+    e.preventDefault();
+    openLightbox(a.getAttribute("data-pimgs"),a.getAttribute("data-pcap"),"",+a.getAttribute("data-pat"));
+  });
+
   /* ---------------- routing ---------------- */
   function applyView(){
-    var home=state.view==="home", room=state.view==="room", board=state.view==="board";
+    var home=state.view==="home", room=state.view==="room", board=state.view==="board",
+        pages=state.view==="pages";
     els.viewHome.classList.toggle("hidden",!home);
     els.viewRoom.classList.toggle("hidden",!room);
     els.viewBoard.classList.toggle("hidden",!board);
-    els.wrap.classList.toggle("wide",board);
+    els.viewPages.classList.toggle("hidden",!pages);
+    els.wrap.classList.toggle("wide",board||pages);
+    // Only this view prints as a document; the print rules key off the flag.
+    document.body.classList.toggle("pdf-mode",pages);
+    if(!pages) restoreTitle();
     els.headLeft.innerHTML = home
       ? '<h1 id="headTitle">Interior Tracker</h1><div class="sub" id="syncSub">…</div>'
       : '<button class="back" id="backBtn" type="button"><span class="cv">‹</span><span id="headTitle"></span></button><div class="sub" id="syncSub">…</div>';
     els.headTitle=$("headTitle"); els.syncSub=$("syncSub");
-    var b=$("backBtn"); if(b) b.addEventListener("click",function(){ go("home"); });
+    // Pages hang off a room, so its back button returns there rather than all the way home.
+    var b=$("backBtn"), backRoom=(pages&&state.room)?state.room:null;
+    if(b) b.addEventListener("click",function(){ if(backRoom) go("room",backRoom); else go("home"); });
     renderAll(); updateStatus();
   }
   function go(view,room){
     state.view=view; state.room=room||null;
     if(view==="room") state.doneLimit=DONE_PAGE;
     if(view==="board") state.boardDoneLimit=DONE_PAGE;
-    var h = view==="home" ? "#/" : (view==="board" ? "#/board" : "#/room/"+encodeURIComponent(room));
+    var h = view==="home" ? "#/"
+      : view==="board" ? "#/board"
+      : view==="pages" ? "#/pages/"+encodeURIComponent(room)
+      : "#/room/"+encodeURIComponent(room);
     if(location.hash!==h) location.hash=h; else applyView();
   }
   /* A setup link carries only the Client ID, Sheet ID and tab name — never a token.
@@ -1234,6 +1539,7 @@
       return;
     }
     if(h.indexOf("#/room/")===0){ state.view="room"; state.room=decodeURIComponent(h.slice(7)); }
+    else if(h.indexOf("#/pages/")===0){ state.view="pages"; state.room=decodeURIComponent(h.slice(8)); }
     else if(h==="#/board"){ state.view="board"; state.room=null; }
     else { state.view="home"; state.room=null; }
     applyView();
@@ -2370,7 +2676,7 @@
 
   /* ---------------- polling ---------------- */
   function busy(){
-    return uploading || els.taskBack.classList.contains("open") || !!drag
+    return uploading || state.view==="pages" || els.taskBack.classList.contains("open") || !!drag
       || els.newRoomBack.classList.contains("open") || els.renameBack.classList.contains("open")
       || els.delRoomBack.classList.contains("open") || els.confirmBack.classList.contains("open");
   }
