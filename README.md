@@ -207,8 +207,9 @@ document has no gaps in it. Pages run in the same order as the checklist — ope
 most recently changed first, finished items after.
 
 - **⤓ Download PDF** hands the pages to your browser's PDF writer. Pick **Save as PDF** as
-  the destination and it lands in your Downloads, named after the room. On a phone it's the
-  same flow through the share sheet.
+  the destination and it lands in your Downloads, named for the room and its floor —
+  `Living Room — Ground floor.pdf`, or just `Living Room.pdf` when the room has no floor
+  set. On a phone it's the same flow through the share sheet.
 - **Photos are embedded at print resolution**, not at the size the checklist shows them.
 - **Videos show their thumbnail with a ▶, and the whole thumbnail is a link** — tapping it in
   the finished PDF opens the video in a browser tab. The full link is printed underneath, so

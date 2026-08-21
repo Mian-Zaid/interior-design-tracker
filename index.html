@@ -1428,19 +1428,31 @@
   }
   /* The browser's own PDF writer. document.title is what Chrome, Edge and Safari offer
      as the file name in the save dialog, so it carries the room name for the duration. */
-  var prevTitle=null;
-  function restoreTitle(){ if(prevTitle!==null){ document.title=prevTitle; prevTitle=null; } }
+  var prevTitle=null, titleTimer=null;
+  function restoreTitle(){
+    if(titleTimer){ clearTimeout(titleTimer); titleTimer=null; }
+    if(prevTitle!==null){ document.title=prevTitle; prevTitle=null; }
+  }
+  // Room, then its floor when it has one — "Living Room — Ground floor". Characters no
+  // file system will take are folded to a dash.
   function pdfName(room){
-    return trimStr(room||"Room").replace(/[\\\/:*?"<>|]+/g,"-")+" — Interior Tracker";
+    var clean=function(v){ return trimStr(v).replace(/[\\\/:*?"<>|]+/g,"-"); };
+    var name=clean(room)||"Room", floor=clean(floorOf(room));
+    return floor?(name+" — "+floor):name;
   }
   function downloadPdf(){
-    if(prevTitle!==null) return;                 // a print is already being prepared
     var btn=els.pagesPdf, label=btn.textContent;
+    if(btn.disabled) return;                     // already preparing this one
     btn.disabled=true; btn.textContent="Preparing…";
     loadAllPageImages().then(function(){
       btn.disabled=false; btn.textContent=label;
+      restoreTitle();                            // never stack a rename on a rename
       prevTitle=document.title;
       document.title=pdfName(state.room);
+      /* afterprint is the normal restore, but iOS Safari doesn't reliably fire it, and a
+         title left renamed would poison the next save. The dialog reads the name as it
+         opens, so a late backstop costs nothing. */
+      titleTimer=setTimeout(restoreTitle,60000);
       window.print();
     });
   }

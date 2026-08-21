@@ -498,7 +498,10 @@ whatever `scale` you guessed.
   annotation, which no browser writes; a link out to the platform is the honest version.)
 - **Selectable text, and a file the user names.** `document.title` is what the save dialog
   offers as the file name, so set it to something meaningful for the duration of the print
-  and restore it on `afterprint`.
+  and restore it on `afterprint`. Don't make `afterprint` the *only* restore, though — iOS
+  Safari doesn't reliably fire it, and a title left renamed poisons the name of the next
+  save. Restore on a timer too, and when the view closes; the dialog reads the name as it
+  opens, so a late backstop costs nothing.
 
 **The layout rules that matter:**
 
