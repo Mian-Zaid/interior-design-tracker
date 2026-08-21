@@ -186,6 +186,8 @@ an empty well — that's normal, not an error.
   **Tap a photo** to see it full-screen; **tap a video** to open it in that app.
 - Active items sit on top, most recently changed first. Finished items sink below, newest
   first, **10 at a time** with **Show 10 more**.
+- **☰ List / ◫ Pages** above the list switches between the checklist and the same room laid
+  out as PDF pages — see [Pages](#pages--the-room-as-a-pdf).
 
 ### Board
 
@@ -196,8 +198,33 @@ an empty well — that's normal, not an error.
   keyboard and a screen reader.
 - The Done column is capped at 10 with its own **Show more**.
 
-Home, room and board are real URLs (`#/`, `#/room/Kitchen`, `#/board`), so the browser back
-button and Android's back gesture work as expected.
+### Pages — the room as a PDF
+
+A room has two readings, and a **☰ List / ◫ Pages** switch at the top of it picks between
+them. **Pages** turns the room into a document: a cover sheet, then **one A4 page per photo and per video link**, each carrying the
+item's title, status and description. An item with no media still gets a page, so the
+document has no gaps in it. Pages run in the same order as the checklist — open items first,
+most recently changed first, finished items after.
+
+- **⤓ Download PDF** hands the pages to your browser's PDF writer. Pick **Save as PDF** as
+  the destination and it lands in your Downloads, named for the room and its floor —
+  `Living Room — Ground floor.pdf`, or just `Living Room.pdf` when the room has no floor
+  set. On a phone it's the same flow through the share sheet.
+- **Photos are embedded at print resolution**, not at the size the checklist shows them.
+- **Videos show their thumbnail with a ▶, and the whole thumbnail is a link** — tapping it in
+  the finished PDF opens the video in a browser tab. The full link is printed underneath, so
+  the page still works on paper. Platforms that don't hand out a poster frame (Instagram,
+  TikTok, Vimeo) get a plain card with the ▶ and the link instead.
+- On screen the sheets are scaled to fit your phone; the PDF is always true A4. Tapping a
+  photo opens the usual full-screen gallery rather than leaving the page.
+- The switch stays put in both views, so going back to the checklist is one tap.
+
+Nothing is uploaded to make this happen — the PDF is written by your own browser, on your own
+device.
+
+Home, room, board and pages are real URLs (`#/`, `#/room/Kitchen`, `#/board`,
+`#/pages/Kitchen`), so the browser back button and Android's back gesture work as expected.
+Back from a room's pages returns to that room, not all the way home.
 
 ---
 

@@ -471,6 +471,63 @@ Also note aspect ratio belongs on the *container*, not the `<img>`: a poster tha
 itself via `onerror` will otherwise collapse the button to zero height and take the play
 control with it.
 
+## A PDF without a PDF library
+
+A "download this as a PDF" button is usually reached for with jsPDF or html2canvas. In a
+page like this one, both are the wrong tool, and the browser's own print pipeline is the
+right one.
+
+**Why not rasterise the DOM.** `html2canvas` and friends work by drawing the page into a
+`<canvas>` and reading it back. Every image on these pages comes from Drive or YouTube,
+neither of which sends CORS headers on its image endpoints — so the canvas is tainted and
+`toDataURL()` throws. The workaround is to fetch each image's bytes yourself, which for
+Drive means an authenticated `files/{id}?alt=media` call that only covers files *this app*
+uploaded (`drive.file` is a per-file grant, not a library grant). Photos someone pasted a
+link to, and every YouTube poster, would silently drop out of the document. On top of that
+a raster PDF is a screenshot: no selectable text, no links, and resolution fixed at
+whatever `scale` you guessed.
+
+**What print gives you for free**, from ordinary DOM:
+
+- **Images at print resolution.** The browser embeds the source it fetched, so asking for a
+  bigger rendition (`sz=w2000` instead of the `sz=w400` the list uses) is the whole of the
+  "high quality" work.
+- **Real link annotations.** Chrome, Edge and Safari turn every `<a href>` into a clickable
+  link in the saved PDF. That is what makes a video thumbnail tappable inside the document —
+  a raster PDF cannot do it at all. (Embedding a *player* in the PDF is a RichMedia
+  annotation, which no browser writes; a link out to the platform is the honest version.)
+- **Selectable text, and a file the user names.** `document.title` is what the save dialog
+  offers as the file name, so set it to something meaningful for the duration of the print
+  and restore it on `afterprint`. Don't make `afterprint` the *only* restore, though — iOS
+  Safari doesn't reliably fire it, and a title left renamed poisons the name of the next
+  save. Restore on a timer too, and when the view closes; the dialog reads the name as it
+  opens, so a late backstop costs nothing.
+
+**The layout rules that matter:**
+
+- Lay the sheets out in **real millimetres** (`210mm × 297mm`) with `@page{size:A4;margin:0}`,
+  and let each sheet carry its own margins as padding. What's on screen is then literally
+  what lands in the PDF.
+- Print at **296mm**, not 297mm. Sub-pixel rounding on a full-height page pushes a hairline
+  onto the next sheet and you get a blank page after every real one.
+- **Scale for the screen with a transform, and undo it in `@media print`.** 210mm is wider
+  than any phone; a transform is the only scaling that leaves the printed geometry alone.
+  The reset needs `!important` — it is beating an inline style the fitter wrote.
+- **Gate the print stylesheet on a class** (`body.pdf-mode`), toggled when the document view
+  opens. Otherwise Ctrl-P from any other screen prints a mangled version of that screen.
+- **Force lazy images in before calling `print()`.** The print snapshot is taken immediately,
+  so `loading="lazy"` images below the fold arrive as blanks. Flip them to `eager`, await
+  their `load`/`error`, and put a timeout on the wait so one stalled thumbnail can't hold
+  the button hostage.
+- **Give the paper its own palette.** A sheet that inherits the app's dark theme prints as a
+  black rectangle. White background and near-black text, stated explicitly, regardless of
+  theme.
+
+**Watch for class-name collisions.** These pages reuse the app's `statusClass()` helper,
+whose `prog` happens to be the home screen's full-width progress button — so the status chip
+silently inherited `width:100%`. A `s-` prefix on the document's own classes is cheap
+insurance when a new view shares a stylesheet with an old one.
+
 ## Adding Drive file uploads
 
 The new capability in this app, and the part worth copying verbatim.
