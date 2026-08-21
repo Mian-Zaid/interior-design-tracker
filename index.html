@@ -273,6 +273,10 @@
   .seg.on-prog{border-color:var(--prog);color:var(--prog);background:var(--prog-bg)}
   .seg.on-done{border-color:var(--done);color:var(--done);background:var(--done-bg)}
   .seg:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  /* Compact variant: a view switch, not a form control, so it sizes to its labels. */
+  .rtabs{margin-bottom:16px}
+  .rtabs .seg{flex:0 0 auto;padding:9px 15px;display:inline-flex;align-items:center;gap:6px}
+  .rtabs .seg.on{border-color:var(--accent);color:var(--accent);background:var(--accent-050)}
   .optbox{border:1.5px dashed var(--line);border-radius:14px;padding:14px;text-align:center}
   .optbox .ot{font-size:14px;font-weight:700;margin-bottom:2px}
   .optbox .os{font-size:12.5px;color:var(--muted);margin-bottom:12px}
@@ -431,10 +435,10 @@
     font-size:10.5pt;line-height:1.5;
     -webkit-print-color-adjust:exact;print-color-adjust:exact;
   }
-  .s-top{display:flex;justify-content:space-between;gap:10px;font-size:8pt;letter-spacing:.06em;
+  .s-top{flex:none;display:flex;justify-content:space-between;gap:10px;font-size:8pt;letter-spacing:.06em;
     text-transform:uppercase;color:#8d9c99;padding-bottom:6mm;border-bottom:.4mm solid #e8eeed}
-  .s-title{font-size:19pt;line-height:1.2;letter-spacing:-.02em;margin:7mm 0 0;font-weight:700}
-  .s-meta{display:flex;align-items:center;gap:8px;margin-top:3.5mm;flex-wrap:wrap}
+  .s-title{flex:none;font-size:19pt;line-height:1.2;letter-spacing:-.02em;margin:7mm 0 0;font-weight:700}
+  .s-meta{flex:none;display:flex;align-items:center;gap:8px;margin-top:3.5mm;flex-wrap:wrap}
   /* s- prefixed, because the bare .prog/.done/.todo names belong to the app chrome. */
   .s-chip{display:inline-flex;align-items:center;gap:5px;border:.35mm solid #dde5e4;border-radius:99px;
     padding:1mm 3mm;font-size:8pt;font-weight:700;letter-spacing:.02em;color:#3d4c4a}
@@ -442,7 +446,7 @@
   .s-chip.s-prog::before{background:#b45309}
   .s-chip.s-done::before{background:#0d9488}
   .s-count{font-size:8.5pt;color:#8d9c99}
-  .s-desc{margin:4mm 0 0;color:#3d4c4a;max-height:42mm;overflow:hidden;white-space:pre-wrap}
+  .s-desc{flex:none;margin:4mm 0 0;color:#3d4c4a;max-height:42mm;overflow:hidden;white-space:pre-wrap}
   .sheet.textonly .s-desc{max-height:none}
   .s-media{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;
     align-items:center;gap:3mm;margin-top:7mm}
@@ -470,13 +474,13 @@
     font-size:8pt;color:#a7b4b2;display:flex;justify-content:space-between;gap:10px}
   /* cover */
   .sheet.cover{justify-content:flex-start}
-  .s-kicker{font-size:8.5pt;letter-spacing:.14em;text-transform:uppercase;color:#8d9c99}
-  .s-room{font-size:34pt;line-height:1.08;letter-spacing:-.03em;margin:6mm 0 0;font-weight:800}
-  .s-floor{margin-top:3mm;font-size:11pt;color:#5f7370}
-  .s-rule{height:.6mm;background:#0d9488;width:28mm;margin:9mm 0}
-  .s-stats{font-size:11pt;color:#3d4c4a}
+  .s-kicker{flex:none;font-size:8.5pt;letter-spacing:.14em;text-transform:uppercase;color:#8d9c99}
+  .s-room{flex:none;font-size:34pt;line-height:1.08;letter-spacing:-.03em;margin:6mm 0 0;font-weight:800}
+  .s-floor{flex:none;margin-top:3mm;font-size:11pt;color:#5f7370}
+  .s-rule{flex:none;height:.6mm;background:#0d9488;width:28mm;margin:9mm 0}
+  .s-stats{flex:none;font-size:11pt;color:#3d4c4a}
   .s-grow{flex:1 1 auto}
-  .s-date{font-size:8.5pt;color:#a7b4b2}
+  .s-date{flex:none;font-size:8.5pt;color:#a7b4b2}
 
   /* @page can't be scoped to a view, so this is global — the sheets carry their own
      margins as padding, and nothing else in the app is meant to be printed. */
@@ -484,7 +488,7 @@
   @media print{
     /* Only the pages view prints as a document; everything else is chrome. */
     body.pdf-mode{background:#fff;padding:0;margin:0}
-    body.pdf-mode header.app,body.pdf-mode #banner,body.pdf-mode .pbar,
+    body.pdf-mode header.app,body.pdf-mode #banner,body.pdf-mode .pbar,body.pdf-mode .rtabs,
     body.pdf-mode #viewHome,body.pdf-mode #viewRoom,body.pdf-mode #viewBoard,
     body.pdf-mode .modal-back,body.pdf-mode .lightbox{display:none !important}
     body.pdf-mode .wrap{max-width:none;padding:0;margin:0}
@@ -527,6 +531,12 @@
     <button class="act hidden" id="bannerAct"></button>
   </div>
 
+  <!-- List / Pages — shown on a room and on that room's pages -->
+  <div class="segs rtabs hidden" id="roomTabs" role="tablist" aria-label="Room view">
+    <button class="seg" type="button" data-rtab="room" role="tab">☰ List</button>
+    <button class="seg" type="button" data-rtab="pages" role="tab">◫ Pages</button>
+  </div>
+
   <!-- HOME -->
   <section id="viewHome">
     <button class="prog" id="heroBtn" type="button">
@@ -546,10 +556,6 @@
 
   <!-- ROOM -->
   <section id="viewRoom" class="hidden">
-    <div class="sec-row" style="margin-top:0">
-      <span class="sec-lbl">Items</span>
-      <button type="button" class="linkbtn" id="roomPagesBtn">◫ Pages</button>
-    </div>
     <div id="roomList"></div>
     <button class="showmore hidden" id="roomShowMore" type="button"></button>
     <button class="btn" id="addItemBtn" type="button" style="margin-top:14px">＋ Add item</button>
@@ -834,7 +840,7 @@
   ["wrap","headTitle","headLeft","syncSub","themeBtn","themeSegs","authBtn","sheetLink","settingsBtn","banner","bannerText","bannerAct",
    "viewHome","viewRoom","viewBoard","heroBtn","overallPct","overallMeta","overallBar","rooms","newRoomBtn",
    "roomList","roomShowMore","addItemBtn","roomRename","roomDelete","filters","cols",
-   "viewPages","pages","pagesPdf","pagesNote","roomPagesBtn",
+   "viewPages","pages","pagesPdf","pagesNote","roomTabs",
    "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","sheetLinkWrap","authState","signOutBtn","authNote","shareWrap","shareLink","copyShareBtn","shareNote","saveSettings","cancelSettings",
    "taskBack","taskTitle","taskSubtitle","taskRoom","taskNewRoom","taskTitleInput","taskSegs","taskDesc",
    "videoField","vidRows","addVidBtn","toggleVideoBtn","optBox","optSub","prevWrap","shotStrip","prevLabel","pickGalleryBtn","pickCameraBtn",
@@ -1443,7 +1449,11 @@
   window.addEventListener("beforeprint",function(){ if(state.view==="pages") loadAllPageImages(); });
 
   els.pagesPdf.addEventListener("click",downloadPdf);
-  els.roomPagesBtn.addEventListener("click",function(){ if(state.room) go("pages",state.room); });
+  els.roomTabs.addEventListener("click",function(e){
+    var b=e.target.closest("[data-rtab]"); if(!b||!state.room) return;
+    var v=b.getAttribute("data-rtab");
+    if(v!==state.view) go(v,state.room);
+  });
   els.pages.addEventListener("click",function(e){
     var a=e.target.closest(".s-photo"); if(!a) return;
     e.preventDefault();
@@ -1458,6 +1468,13 @@
     els.viewRoom.classList.toggle("hidden",!room);
     els.viewBoard.classList.toggle("hidden",!board);
     els.viewPages.classList.toggle("hidden",!pages);
+    // The list and the pages are two readings of one room, so the switch belongs to both.
+    els.roomTabs.classList.toggle("hidden",!(room||pages));
+    Array.prototype.forEach.call(els.roomTabs.querySelectorAll(".seg"),function(b){
+      var on=b.getAttribute("data-rtab")===state.view;
+      b.classList.toggle("on",on);
+      b.setAttribute("aria-selected",on?"true":"false");
+    });
     els.wrap.classList.toggle("wide",board||pages);
     // Only this view prints as a document; the print rules key off the flag.
     document.body.classList.toggle("pdf-mode",pages);

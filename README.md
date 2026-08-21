@@ -186,6 +186,8 @@ an empty well — that's normal, not an error.
   **Tap a photo** to see it full-screen; **tap a video** to open it in that app.
 - Active items sit on top, most recently changed first. Finished items sink below, newest
   first, **10 at a time** with **Show 10 more**.
+- **☰ List / ◫ Pages** above the list switches between the checklist and the same room laid
+  out as PDF pages — see [Pages](#pages--the-room-as-a-pdf).
 
 ### Board
 
@@ -198,8 +200,8 @@ an empty well — that's normal, not an error.
 
 ### Pages — the room as a PDF
 
-Every room has a **◫ Pages** link at the top of its checklist. It turns that room into a
-document: a cover sheet, then **one A4 page per photo and per video link**, each carrying the
+A room has two readings, and a **☰ List / ◫ Pages** switch at the top of it picks between
+them. **Pages** turns the room into a document: a cover sheet, then **one A4 page per photo and per video link**, each carrying the
 item's title, status and description. An item with no media still gets a page, so the
 document has no gaps in it. Pages run in the same order as the checklist — open items first,
 most recently changed first, finished items after.
@@ -214,6 +216,7 @@ most recently changed first, finished items after.
   TikTok, Vimeo) get a plain card with the ▶ and the link instead.
 - On screen the sheets are scaled to fit your phone; the PDF is always true A4. Tapping a
   photo opens the usual full-screen gallery rather than leaving the page.
+- The switch stays put in both views, so going back to the checklist is one tap.
 
 Nothing is uploaded to make this happen — the PDF is written by your own browser, on your own
 device.
