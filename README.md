@@ -172,6 +172,8 @@ an empty well — that's normal, not an error.
 
 - **Tap a tile** to open that room.
 - **Tap the big number** to open the board.
+- **◫ Pages** builds one PDF out of the rooms currently on screen — see
+  [Pages](#pages--the-room-as-a-pdf).
 - Once any room has a floor, a chip row appears: **All**, then one chip per floor, plus
   **No floor** if some rooms are unassigned. Under **All** the tiles are grouped beneath
   uppercase floor headings; pick a single floor and you get a plain grid of just those rooms.
@@ -207,7 +209,7 @@ document has no gaps in it. Pages run in the same order as the checklist — ope
 most recently changed first, finished items after.
 
 - **⤓ Download PDF** hands the pages to your browser's PDF writer. Pick **Save as PDF** as
-  the destination and it lands in your Downloads, named for the room and its floor —
+  the destination and it lands in your Downloads, named for whatever the document covers —
   `Living Room — Ground floor.pdf`, or just `Living Room.pdf` when the room has no floor
   set. On a phone it's the same flow through the share sheet.
 - **Photos are embedded at print resolution**, not at the size the checklist shows them.
@@ -218,6 +220,15 @@ most recently changed first, finished items after.
 - On screen the sheets are scaled to fit your phone; the PDF is always true A4. Tapping a
   photo opens the usual full-screen gallery rather than leaving the page.
 - The switch stays put in both views, so going back to the checklist is one tap.
+
+#### A whole floor, or the whole house
+
+Home has its own **◫ Pages** link, next to **＋ New**. It builds one document out of
+**whatever the floor chips are currently showing** — a single floor, the unassigned rooms,
+or under **All**, the entire house. Each room inside opens with its own sheet carrying the
+room name and its counts, so a fifty-page floor document is still navigable, and every page
+after it says which room it belongs to. The file is named for the floor: `Ground floor.pdf`,
+`No floor.pdf`, `Whole house.pdf`.
 
 Nothing is uploaded to make this happen — the PDF is written by your own browser, on your own
 device.

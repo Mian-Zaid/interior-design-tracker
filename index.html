@@ -116,6 +116,7 @@
 
   .sec-row{display:flex;justify-content:space-between;align-items:center;margin:22px 0 10px}
   .sec-lbl{font-size:12.5px;font-weight:750;letter-spacing:.01em}
+  .sec-acts{display:flex;align-items:center;gap:16px}
 
   /* floor filter — only rendered when a floor actually exists */
   .floors{display:flex;gap:7px;overflow-x:auto;padding-bottom:11px;scrollbar-width:none}
@@ -445,8 +446,9 @@
   .s-chip::before{content:"";width:2mm;height:2mm;border-radius:50%;background:#9aa9a7}
   .s-chip.s-prog::before{background:#b45309}
   .s-chip.s-done::before{background:#0d9488}
-  .s-count{font-size:8.5pt;color:#8d9c99}
-  .s-desc{flex:none;margin:4mm 0 0;color:#3d4c4a;max-height:42mm;overflow:hidden;white-space:pre-wrap}
+  .s-count{font-size:9pt;color:#8d9c99}
+  .s-desc{flex:none;margin:4.5mm 0 0;color:#3d4c4a;font-size:12.5pt;line-height:1.55;
+    max-height:52mm;overflow:hidden;white-space:pre-wrap}
   .sheet.textonly .s-desc{max-height:none}
   .s-media{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;
     align-items:center;gap:3mm;margin-top:7mm}
@@ -472,8 +474,10 @@
   .s-none{flex:none;margin-top:7mm;font-size:9.5pt;color:#a7b4b2}
   .s-foot{flex:none;margin-top:6mm;padding-top:4mm;border-top:.4mm solid #e8eeed;
     font-size:8pt;color:#a7b4b2;display:flex;justify-content:space-between;gap:10px}
-  /* cover */
+  /* cover, and the room separator inside a floor document */
   .sheet.cover{justify-content:flex-start}
+  .sheet.divider .s-room{font-size:26pt}
+  .sheet.divider .s-kicker{margin-top:9mm}
   .s-kicker{flex:none;font-size:8.5pt;letter-spacing:.14em;text-transform:uppercase;color:#8d9c99}
   .s-room{flex:none;font-size:34pt;line-height:1.08;letter-spacing:-.03em;margin:6mm 0 0;font-weight:800}
   .s-floor{flex:none;margin-top:3mm;font-size:11pt;color:#5f7370}
@@ -548,7 +552,10 @@
     </button>
     <div class="sec-row">
       <span class="sec-lbl">Rooms</span>
-      <button type="button" class="linkbtn" id="newRoomBtn">＋ New</button>
+      <span class="sec-acts">
+        <button type="button" class="linkbtn" id="homePagesBtn">◫ Pages</button>
+        <button type="button" class="linkbtn" id="newRoomBtn">＋ New</button>
+      </span>
     </div>
     <div class="floors hidden" id="floorChips"></div>
     <div id="rooms"><div class="empty">No rooms yet</div></div>
@@ -831,6 +838,7 @@
     floors:{},                                       // room -> floor label ("" = unassigned)
     floorFilter:(function(){ try{ return localStorage.getItem(LS_FLOOR)||"__all__"; }catch(e){ return "__all__"; } })(),
     doneLimit:DONE_PAGE, boardDoneLimit:DONE_PAGE,
+    pagesKind:"room", pagesFloor:"__all__",         // what the pages view is a document of
     byId:{}, editing:null
   };
   var gapiReady=false, tokenClient=null, tokenExpiry=0, accessToken="", upgradeTried=false;
@@ -838,7 +846,7 @@
   var $=function(id){return document.getElementById(id);};
   var els={};
   ["wrap","headTitle","headLeft","syncSub","themeBtn","themeSegs","authBtn","sheetLink","settingsBtn","banner","bannerText","bannerAct",
-   "viewHome","viewRoom","viewBoard","heroBtn","overallPct","overallMeta","overallBar","rooms","newRoomBtn",
+   "viewHome","viewRoom","viewBoard","heroBtn","overallPct","overallMeta","overallBar","rooms","newRoomBtn","homePagesBtn",
    "roomList","roomShowMore","addItemBtn","roomRename","roomDelete","filters","cols",
    "viewPages","pages","pagesPdf","pagesNote","roomTabs",
    "modalBack","clientIdInput","sheetInput","tabInput","connectBtn","connectBtnText","sheetLinkWrap","authState","signOutBtn","authNote","shareWrap","shareLink","copyShareBtn","shareNote","saveSettings","cancelSettings",
@@ -1127,9 +1135,24 @@
       + '<span class="ct">'+done+' of '+ts.length+'</span>'
       + '</button>';
   }
-  function renderRooms(){
+  // A room can exist only as a task's room name — a sheet table nobody has titled yet.
+  function allRoomNames(){
     var rooms=state.rooms.slice();
     allTasks().forEach(function(t){ if(rooms.indexOf(t.room)===-1) rooms.push(t.room); });
+    return rooms;
+  }
+  function roomsOnFloor(v){
+    return allRoomNames().filter(function(r){
+      if(v==="__all__") return true;
+      if(v==="__none__") return !floorOf(r);
+      return normName(floorOf(r))===normName(v);
+    });
+  }
+  function floorLabel(v){
+    return v==="__all__" ? "Whole house" : (v==="__none__" ? "No floor" : trimStr(v));
+  }
+  function renderRooms(){
+    var rooms=allRoomNames();
     if(!rooms.length){
       els.floorChips.classList.add("hidden");
       els.rooms.innerHTML='<div class="empty">No rooms yet — tap ＋ New</div>';
@@ -1151,11 +1174,7 @@
       els.floorChips.classList.remove("hidden");
     }
 
-    var vis=rooms.filter(function(r){
-      if(state.floorFilter==="__all__") return true;
-      if(state.floorFilter==="__none__") return !floorOf(r);
-      return normName(floorOf(r))===normName(state.floorFilter);
-    });
+    var vis=roomsOnFloor(state.floorFilter);
     if(!vis.length){ els.rooms.innerHTML='<div class="empty">No rooms on this floor</div>'; return; }
 
     // Grouped under "All" so you can still see the whole house at once; a chosen floor
@@ -1313,21 +1332,34 @@
   function sheet(inner,cls){
     return '<div class="slot"><div class="sheet'+(cls?" "+cls:"")+'">'+inner+'</div></div>';
   }
-  function coverSheet(room,items,total){
+  function statsLine(items){
     var done=0; items.forEach(function(t){ if(t.status==="Done") done++; });
-    var floor=floorOf(room);
-    var stats=items.length
+    return items.length
       ? (items.length+" "+(items.length===1?"item":"items")+" · "+done+" done · "+pct(done,items.length)+"%")
       : "No items yet";
+  }
+  function coverSheet(title,sub,items,total){
     return sheet(
        '<div class="s-kicker">Interior Tracker</div>'
-      +'<div class="s-room">'+esc(room)+'</div>'
-      +(floor?'<div class="s-floor">'+esc(floor)+'</div>':'')
+      +'<div class="s-room">'+esc(title)+'</div>'
+      +(sub?'<div class="s-floor">'+esc(sub)+'</div>':'')
       +'<div class="s-rule"></div>'
-      +'<div class="s-stats">'+esc(stats)+'</div>'
+      +'<div class="s-stats">'+esc(statsLine(items))+'</div>'
       +'<div class="s-grow"></div>'
       +'<div class="s-date">'+esc(dateShort(nowStamp())+" · "+total+" "+(total===1?"page":"pages"))+'</div>'
     ,"cover");
+  }
+  // A floor's document runs through several rooms, so each one opens with its own sheet —
+  // otherwise the only clue you'd changed room is the running head.
+  function dividerSheet(room,items,doc,n,total){
+    return sheet(
+       '<div class="s-top"><span>'+esc(doc)+'</span><span>'+n+' / '+total+'</span></div>'
+      +'<div class="s-kicker">Room</div>'
+      +'<div class="s-room">'+esc(room)+'</div>'
+      +'<div class="s-rule"></div>'
+      +'<div class="s-stats">'+esc(statsLine(items))+'</div>'
+      +'<div class="s-grow"></div>'
+    ,"cover divider");
   }
   function mediaHTML(t,m){
     if(m.kind==="photo"){
@@ -1363,16 +1395,33 @@
     ,m.kind==="none"?"textonly":"");
   }
 
+  function docIsFloor(){ return state.pagesKind==="floor"; }
+  function docName(){ return docIsFloor()?floorLabel(state.pagesFloor):(state.room||"Room"); }
+  function docRooms(){ return docIsFloor()?roomsOnFloor(state.pagesFloor):[state.room]; }
   function renderPages(){
-    var room=state.room;
-    els.headTitle.textContent=room||"Room";
-    var items=pageItems(room);
-    var groups=items.map(function(t){ return {t:t, media:itemPages(t)}; });
-    var total=1; groups.forEach(function(g){ total+=g.media.length; });
+    var floorDoc=docIsFloor(), title=docName(), rooms=docRooms();
+    els.headTitle.textContent=title;
+    // Two passes: the page count has to be known before the first page is written, because
+    // every page carries "n / total".
+    var blocks=[], all=[], total=1;
+    rooms.forEach(function(rm){
+      var items=pageItems(rm);
+      var groups=items.map(function(t){ return {t:t, media:itemPages(t)}; });
+      var n=floorDoc?1:0;                                    // the room's own divider
+      groups.forEach(function(g){ n+=g.media.length; });
+      total+=n; all=all.concat(items);
+      blocks.push({room:rm, items:items, groups:groups});
+    });
     els.syncSub.textContent=total+" "+(total===1?"page":"pages")+" · A4";
-    var html=[coverSheet(room,items,total)], n=1;
-    groups.forEach(function(g){
-      g.media.forEach(function(m){ html.push(entrySheet(g.t,m,room,++n,total)); });
+    var sub=floorDoc
+      ? (rooms.length+" "+(rooms.length===1?"room":"rooms"))
+      : floorOf(state.room);
+    var html=[coverSheet(title,sub,all,total)], n=1;
+    blocks.forEach(function(b){
+      if(floorDoc) html.push(dividerSheet(b.room,b.items,title,++n,total));
+      b.groups.forEach(function(g){
+        g.media.forEach(function(m){ html.push(entrySheet(g.t,m,b.room,++n,total)); });
+      });
     });
     els.pages.innerHTML=html.join("");
     wirePageImages();
@@ -1435,9 +1484,10 @@
   }
   // Room, then its floor when it has one — "Living Room — Ground floor". Characters no
   // file system will take are folded to a dash.
-  function pdfName(room){
+  function pdfName(){
     var clean=function(v){ return trimStr(v).replace(/[\\\/:*?"<>|]+/g,"-"); };
-    var name=clean(room)||"Room", floor=clean(floorOf(room));
+    if(docIsFloor()) return clean(floorLabel(state.pagesFloor))||"Rooms";
+    var name=clean(state.room)||"Room", floor=clean(floorOf(state.room));
     return floor?(name+" — "+floor):name;
   }
   function downloadPdf(){
@@ -1448,7 +1498,7 @@
       btn.disabled=false; btn.textContent=label;
       restoreTitle();                            // never stack a rename on a rename
       prevTitle=document.title;
-      document.title=pdfName(state.room);
+      document.title=pdfName();
       /* afterprint is the normal restore, but iOS Safari doesn't reliably fire it, and a
          title left renamed would poison the next save. The dialog reads the name as it
          opens, so a late backstop costs nothing. */
@@ -1461,6 +1511,9 @@
   window.addEventListener("beforeprint",function(){ if(state.view==="pages") loadAllPageImages(); });
 
   els.pagesPdf.addEventListener("click",downloadPdf);
+  // Home's button follows the floor chips: whatever set of rooms is on screen is what
+  // the document covers, "All" (the whole house) included.
+  els.homePagesBtn.addEventListener("click",function(){ go("pages",null,state.floorFilter); });
   els.roomTabs.addEventListener("click",function(e){
     var b=e.target.closest("[data-rtab]"); if(!b||!state.room) return;
     var v=b.getAttribute("data-rtab");
@@ -1481,7 +1534,8 @@
     els.viewBoard.classList.toggle("hidden",!board);
     els.viewPages.classList.toggle("hidden",!pages);
     // The list and the pages are two readings of one room, so the switch belongs to both.
-    els.roomTabs.classList.toggle("hidden",!(room||pages));
+    var roomScoped=room||(pages&&state.pagesKind==="room");
+    els.roomTabs.classList.toggle("hidden",!roomScoped);
     Array.prototype.forEach.call(els.roomTabs.querySelectorAll(".seg"),function(b){
       var on=b.getAttribute("data-rtab")===state.view;
       b.classList.toggle("on",on);
@@ -1496,17 +1550,24 @@
       : '<button class="back" id="backBtn" type="button"><span class="cv">‹</span><span id="headTitle"></span></button><div class="sub" id="syncSub">…</div>';
     els.headTitle=$("headTitle"); els.syncSub=$("syncSub");
     // Pages hang off a room, so its back button returns there rather than all the way home.
-    var b=$("backBtn"), backRoom=(pages&&state.room)?state.room:null;
+    var b=$("backBtn"), backRoom=(pages&&state.pagesKind==="room"&&state.room)?state.room:null;
     if(b) b.addEventListener("click",function(){ if(backRoom) go("room",backRoom); else go("home"); });
     renderAll(); updateStatus();
   }
-  function go(view,room){
+  // floor is only meaningful for the pages view: pass one for a floor document, omit it
+  // for a single room's.
+  function go(view,room,floor){
     state.view=view; state.room=room||null;
     if(view==="room") state.doneLimit=DONE_PAGE;
     if(view==="board") state.boardDoneLimit=DONE_PAGE;
+    if(view==="pages"){
+      state.pagesKind=(floor==null)?"room":"floor";
+      if(floor!=null) state.pagesFloor=floor;
+    }
     var h = view==="home" ? "#/"
       : view==="board" ? "#/board"
-      : view==="pages" ? "#/pages/"+encodeURIComponent(room)
+      : view==="pages" ? (floor==null ? "#/pages/room/"+encodeURIComponent(room)
+                                      : "#/pages/floor/"+encodeURIComponent(floor))
       : "#/room/"+encodeURIComponent(room);
     if(location.hash!==h) location.hash=h; else applyView();
   }
@@ -1568,7 +1629,13 @@
       return;
     }
     if(h.indexOf("#/room/")===0){ state.view="room"; state.room=decodeURIComponent(h.slice(7)); }
-    else if(h.indexOf("#/pages/")===0){ state.view="pages"; state.room=decodeURIComponent(h.slice(8)); }
+    else if(h.indexOf("#/pages/room/")===0){
+      state.view="pages"; state.pagesKind="room"; state.room=decodeURIComponent(h.slice(13));
+    }
+    else if(h.indexOf("#/pages/floor/")===0){
+      state.view="pages"; state.pagesKind="floor"; state.room=null;
+      state.pagesFloor=decodeURIComponent(h.slice(14));
+    }
     else if(h==="#/board"){ state.view="board"; state.room=null; }
     else { state.view="home"; state.room=null; }
     applyView();
